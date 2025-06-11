@@ -1,44 +1,158 @@
-from fastapi import FastAPI, WebSocketDisconnect, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from typing import List, Dict
-from glob import glob
-import os, datetime
+from fastapi.responses import JSONResponse, FileResponse
+from pydantic import BaseModel, Field
+from typing import List, Dict, Literal
+import os, datetime, mimetypes
 
+# --- Configuração de Segurança ---
+# Constrói um caminho absoluto para o diretório base de forma segura.
+# Isso garante que a aplicação funcione independentemente de onde for executada.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PATH_BASE_WORKFLOW = os.path.abspath(os.path.join(BASE_DIR, "../../BioComp_UFF"))
+PROJECTS_ROOT = os.path.join(PATH_BASE_WORKFLOW, "projects")
 
-PATH_BASE_WORKFLOW="../../BioComp_UFF"
+# Verifica se o diretório de projetos existe para evitar erros na inicialização.
+if not os.path.exists(PROJECTS_ROOT) or not os.path.isdir(PROJECTS_ROOT):
+    raise RuntimeError(f"O diretório base de projetos não foi encontrado em: {PROJECTS_ROOT}")
 
 
 app = FastAPI()
 
-origins = [
-    "http://localhost",
-    "http://localhost:8080",
-    "*"
-]
-
+# --- Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"], # Permite todos os métodos (GET, POST, etc.)
-    allow_headers=["*"], # Permite todos os cabeçalhos
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# --- Modelos Pydantic para Respostas Claras e Validadas ---
+
+class Project(BaseModel):
+    name: str = Field(..., description="Nome do projeto.")
+    last_modified: datetime.datetime = Field(..., description="Data da última modificação do diretório do projeto.")
+
+class FileSystemItem(BaseModel):
+    name: str = Field(..., description="Nome do arquivo ou diretório.")
+    path: str = Field(..., description="Caminho relativo ao diretório de projetos.")
+    type: Literal["file", "directory"] = Field(..., description="Tipo do item (arquivo ou diretório).")
+    size: int = Field(..., description="Tamanho do item em bytes.")
+    last_modified: datetime.datetime = Field(..., description="Data da última modificação.")
+
+
+# --- Endpoints HTTP para Exploração de Arquivos ---
+
+@app.get("/projects", response_model=List[Project])
+async def get_projects():
+    """
+    Retorna uma lista de todos os projetos disponíveis, ordenados por nome.
+    """
+    projects = []
+    for project_name in sorted(os.listdir(PROJECTS_ROOT)):
+        full_path = os.path.join(PROJECTS_ROOT, project_name)
+        if os.path.isdir(full_path):
+            projects.append(Project(
+                name=project_name,
+                last_modified=datetime.datetime.fromtimestamp(os.path.getmtime(full_path))
+            ))
+    return projects
+
+@app.get("/browse", response_model=List[FileSystemItem])
+async def browse_path(path: str = Query("", description="O caminho relativo a ser explorado. Ex: 'meu_projeto/Trees'")):
+    """
+    Lista o conteúdo de um diretório específico dentro da pasta de projetos.
+    Por segurança, impede o acesso a diretórios fora da pasta 'PROJECTS_ROOT'.
+    """
+    # --- Verificação de Segurança para evitar Path Traversal ---
+    # 1. Constrói o caminho absoluto solicitado pelo cliente.
+    requested_path = os.path.abspath(os.path.join(PROJECTS_ROOT, path))
+
+    # 2. Verifica se o caminho solicitado está realmente dentro do diretório de projetos.
+    if not requested_path.startswith(PROJECTS_ROOT):
+        raise HTTPException(status_code=403, detail="Acesso negado: tentativa de acessar um caminho inválido.")
+
+    if not os.path.exists(requested_path) or not os.path.isdir(requested_path):
+        raise HTTPException(status_code=404, detail="Caminho não encontrado ou não é um diretório.")
+
+    # --- Listagem do Conteúdo ---
+    items = []
+    for item_name in sorted(os.listdir(requested_path)):
+        full_item_path = os.path.join(requested_path, item_name)
+        relative_item_path = os.path.relpath(full_item_path, PROJECTS_ROOT)
+        
+        item_type = "directory" if os.path.isdir(full_item_path) else "file"
+        
+        items.append(FileSystemItem(
+            name=item_name,
+            path=relative_item_path.replace("\\", "/"), # Garante barras no estilo unix
+            type=item_type,
+            size=os.path.getsize(full_item_path),
+            last_modified=datetime.datetime.fromtimestamp(os.path.getmtime(full_item_path))
+        ))
+    return items
+
+@app.get("/inputs_data", response_model=List[FileSystemItem])
+async def inputs_data_path(path: str = Query("", description="O caminho relativo a ser explorado. Ex: 'meu_projeto/Trees'")):
+    """
+    Lista o conteúdo de um diretório específico dentro da pasta de projetos.
+    Por segurança, impede o acesso a diretórios fora da pasta 'PROJECTS_ROOT'.
+    """
+    # --- Verificação de Segurança para evitar Path Traversal ---
+    # 1. Constrói o caminho absoluto solicitado pelo cliente.
+    requested_path = os.path.abspath(os.path.join(PATH_BASE_WORKFLOW, 'data'))
+
+    if not os.path.exists(requested_path) or not os.path.isdir(requested_path):
+        raise HTTPException(status_code=404, detail="Caminho não encontrado ou não é um diretório.")
+
+    # --- Listagem do Conteúdo ---
+    items = []
+    for item_name in sorted(os.listdir(requested_path)):
+        full_item_path = os.path.join(requested_path, item_name)
+        relative_item_path = os.path.relpath(full_item_path, PROJECTS_ROOT)
+        
+        item_type = "directory" if os.path.isdir(full_item_path) else "file"
+        
+        items.append(FileSystemItem(
+            name=item_name,
+            path=relative_item_path.replace("\\", "/"), # Garante barras no estilo unix
+            type=item_type,
+            size=os.path.getsize(full_item_path),
+            last_modified=datetime.datetime.fromtimestamp(os.path.getmtime(full_item_path))
+        ))
+    return items
+
+@app.get("/file")
+async def get_file_content(path: str = Query(..., description="Caminho relativo do arquivo.")):
+    """
+    Retorna o conteúdo de um arquivo. Para imagens, retorna o arquivo diretamente.
+    Para texto, retorna o conteúdo como JSON.
+    """
+    full_path = os.path.abspath(os.path.join(PROJECTS_ROOT, path))
+    if not full_path.startswith(PROJECTS_ROOT):
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+    if not os.path.isfile(full_path):
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
+
+    mime_type, _ = mimetypes.guess_type(full_path)
+    if mime_type and mime_type.startswith("image/"):
+        return FileResponse(full_path)
+    
+    text_extensions = [".txt", ".log", ".cql", ".nexus", ".md", ".json"]
+    if any(full_path.endswith(ext) for ext in text_extensions):
+        try:
+            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()
+            return {"content": content, "type": "text"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Erro ao ler arquivo: {e}")
+
+    raise HTTPException(status_code=415, detail="Tipo de arquivo não suportado para pré-visualização.")
+
+# --- Gerenciador e Endpoint WebSocket (Mantidos do código original) ---
+
 class ConnectionManager:
-    """
-    Gerencia as conexões WebSocket ativas.
-    
-    Permite conectar, desconectar e enviar mensagens para clientes específicos.
-    
-    Atributos:
-        active_connections (Dict[str, WebSocket]): Dicionário que mapeia IDs de clientes para suas conexões WebSocket ativas.
-    Métodos:    
-        connect(websocket: WebSocket, client_id: str): Aceita uma nova conexão WebSocket e a associa a um ID de cliente.
-        disconnect(client_id: str): Desconecta o cliente associado ao ID fornecido.
-        send_message(client_id: str, message: str): Envia uma mensagem para o cliente associado ao ID fornecido.
-       
-    """
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
 
@@ -50,57 +164,18 @@ class ConnectionManager:
         if client_id in self.active_connections:
             del self.active_connections[client_id]
 
-    async def send_message(self, client_id: str, message: str):
-        if client_id in self.active_connections:
-            await self.active_connections[client_id].send_text(message)
-            
 manager = ConnectionManager()
-
-@app.get("/")
-async def read_root():
-    return {"message": "Bem-vindo à API FastAPI!"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    """
-    Gerencia a conexão WebSocket e processa mensagens recebidas do cliente.
-    Esta função aceita uma conexão WebSocket, recebe mensagens do cliente e envia respostas de volta.
-    Se ocorrer um erro durante a comunicação, o cliente é desconectado e uma mensagem de erro é exibida.
-
-    Parâmetros:
-        websocket (WebSocket): A conexão WebSocket com o cliente.
-        client_id (str): Um identificador único para o cliente, usado para gerenciar conexões.      
-    
-    Exceções:
-        Exception: Se ocorrer um erro durante a recepção de mensagens, o cliente é desconectado e uma mensagem de erro é exibida.
-    
-    """
     await manager.connect(websocket, client_id)
     try:
         while True:
             data = await websocket.receive_text()
-            response_message = f"Você disse: {data}"
-            await manager.send_message(client_id, response_message)
-
+            await websocket.send_text(f"Você disse: {data}")
     except WebSocketDisconnect:
-        print(f"Cliente {client_id} desconectou (WebSocketDisconnect).")
-    except Exception as e:
-        print(f"Ocorreu um erro com o cliente {client_id}: {e}")
-    finally:
         manager.disconnect(client_id)
-        print(f"Conexão com {client_id} fechada. Total: {len(manager.active_connections)}")
-
-@app.get("/projects")
-async def get_projects() -> List[str]:
-    """
-    Retorna uma lista de projetos disponíveis no diretório 'projects'.
-    
-    Retorna:
-        List[str]: Lista de nomes de projetos encontrados.
-    """
-    base_path = os.path.join(PATH_BASE_WORKFLOW, "projects")
-    projects = os.listdir(base_path)
-    
-    timestamp = lambda x: datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(base_path, x))).isoformat()
-    return JSONResponse(content=[{'value': project, 'label': project, "timestamp": timestamp(project)} for project in projects])
-    # return JSONResponse(content={i: projetc for i, projetc in enumerate(projects)})
+        print(f"Cliente {client_id} desconectado.")
+    except Exception as e:
+        print(f"Erro com {client_id}: {e}")
+        manager.disconnect(client_id)

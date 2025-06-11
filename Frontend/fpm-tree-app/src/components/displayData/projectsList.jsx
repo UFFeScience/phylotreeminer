@@ -4,34 +4,32 @@ import SourceIcon from '@mui/icons-material/Source';
 import CardProject from './cardProject';
 
 
-const ProjectsList = () => {
-    const [projects, setProjects] = useState([]);
+const ProjectsList = ({ projects }) => {
 
-    useEffect(() => {
-        fetch('http://localhost:8000/projects')
-            .then(response => response.json())
-            .then(data => setProjects(data))
-            .catch(error => console.error('Error fetching projects:', error));
-    }, []);
+
 
     const handleChange = (value) => {
         console.log(`selected ${value}`);
     };
 
     return (
-        <div style={{ width: '100%', height: '100%' }}>
+        <div style={{
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            margin: 20,
+            padding: 20
+        }}>
             <Flex
                 wrap gap="small"
-                justify={'space-around'} 
-                align={'center'}
+                // justify={'space-around'}
+                // align={'center'}
                 style={{
-                    width: '90%',
+                    width: '80%',
                     maxHeight: '30%',
                     borderRadius: 6,
-                    margin: 20,
-                    padding: 20,
                     overflow: 'auto',
-                    backgroundColor: '#F3F8FFFF',
                 }}
 
             >

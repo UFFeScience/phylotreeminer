@@ -10,13 +10,14 @@ const actions = [
 const CardProject = ({ project, id }) => {
 
     return (
-        <Card actions={actions} style={{ minWidth: 300 }}>
+        
+        <Card actions={actions} style={{ minWidth: 300 }} title={project.name} extra={<FolderOutlined />}>
             <Card.Meta
-                avatar={<FolderOutlined style={{ fontSize: '24px' }} />}
-                title={project.label}
+                // avatar={}
+                // title={project.name}
                 description={
                     <>
-                        <p><b>Última modificação:</b> {project.timestamp.split('T')[0]}</p>
+                        <p><b>Última modificação:</b> {project.last_modified.split('T')[0]}</p>
                     </>
                 }
             />
