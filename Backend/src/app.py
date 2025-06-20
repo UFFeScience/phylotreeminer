@@ -161,7 +161,7 @@ async def get_projects_status():
                         if "Histograma de frequência processado" in f.read():
                             statuses[project_name] = "completed"
                         else:
-                            statuses[project_name] = "idle" # Pode ter falhado ou estar aguardando
+                            statuses[project_name] = "failed" # Pode ter falhado ou estar aguardando
                 else:
                     statuses[project_name] = "idle"
     return statuses

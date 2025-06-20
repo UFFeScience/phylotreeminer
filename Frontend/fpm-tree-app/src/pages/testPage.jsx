@@ -8,8 +8,11 @@ const TestPage = () => {
     return (
         <div
             style={{
-                // height: '100vh',
-                
+                height: '80vh',
+                borderRadius: 8,
+                backgroundColor: '#ffffff',
+                padding: 24
+
             }}
         >
             <>
@@ -17,16 +20,16 @@ const TestPage = () => {
                     trigger="click"
                     // type="primary"
                     style={{ insetInlineEnd: 24, marginRight: 24 }}
-                    icon={<QuestionOutlined/>}
-                    
+                    icon={<QuestionOutlined />}
+
                     tooltip="Ajuda"
                     placement='top'
-                    
-                    // badge={{
-                    //     // dot: true,
-                    //     count: '?',
-                    //     style: { backgroundColor: `${colors.data.orange}` },
-                    // }}
+
+                // badge={{
+                //     // dot: true,
+                //     count: '?',
+                //     style: { backgroundColor: `${colors.data.orange}` },
+                // }}
                 >
                     <FloatButton />
                     <FloatButton icon={<CommentOutlined />} />

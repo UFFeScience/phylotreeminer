@@ -66,15 +66,15 @@ const SystemPerformanceMonitor = () => {
             <Space direction="vertical" style={{ width: '100%' }}>
                 <div>
                     <Text>CPU</Text>
-                    <Progress percent={metrics.cpu} strokeColor={{ from: '#108ee9', to: '#87d068' }} />
+                    <Progress percent={metrics.cpu} strokeColor={{ from: '#3BD66FFF', to: '#E63434FF' }} />
                 </div>
                 <div>
                     <Text>Memória</Text>
-                    <Progress percent={metrics.memory} />
+                    <Progress percent={metrics.memory} strokeColor={{ from: '#3BD66FFF', to: '#E63434FF' }}/>
                 </div>
                 <div>
                     <Text>Disco</Text>
-                    <Progress percent={metrics.disk} status="active" strokeColor={{ from: '#108ee9', to: '#87d068' }}  />
+                    <Progress percent={metrics.disk} status="active" strokeColor={{ from: '#3BD66FFF', to: '#E63434FF' }}  />
                 </div>
                 {/* <div>
                     <Text>Rede</Text>

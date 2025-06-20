@@ -11,7 +11,13 @@ const ProjectPage = () => {
     };
 
     return (
-        <div style={{minWidth: '30vw'}}>
+        <div style={{
+            minWidth: '30vw',
+            borderRadius: 8,
+            backgroundColor: '#ffffff',
+            padding: 24
+            
+        }}>
             {selectedProject ? (
                 <ProjectDetailView
                     projectName={selectedProject}

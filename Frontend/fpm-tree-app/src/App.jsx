@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Button, Typography, Space, Avatar, Flex, Result } from 'antd';
+import { useState } from 'react';
+import { Layout, Menu, Button, Typography, Space, Flex } from 'antd';
 import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
@@ -8,132 +8,41 @@ import {
   SettingOutlined,
   ExperimentOutlined,
   CodeOutlined,
-  GlobalOutlined,
   SearchOutlined,
   BellOutlined,
-  UserOutlined
+  HomeOutlined,
+  PartitionOutlined
 } from '@ant-design/icons';
-import ProjectExplorer from './components/displayData/projectExplorer';
-import TestPage from './pages/testPage';
+import { Link, useLocation, Outlet } from 'react-router-dom';
 
 
 import { colors } from './themes'
-import SystemPerformanceMonitor from './components/displayData/systemPerformancerMonitor';
-import ProjectGallery from './components/displayData/projectsGallery';
-import ProjectDetailView from './components/displayData/projectDetailsView';
-import ProjectPage from './pages/projectsPage';
-
 
 const { Header, Content, Sider, Footer } = Layout;
 const { Title } = Typography;
 
-const menuItems = [
-  { key: '1', icon: <AppstoreOutlined />, label: 'Dashboard' },
-  { key: '2', icon: <ExperimentOutlined />, label: 'Pipelines' },
-  { key: '3', icon: <ContainerOutlined />, label: 'Projects' },
-  { key: '4', icon: <CodeOutlined />, label: 'Scripts' },
-  // { key: '5', icon: <GlobalOutlined />, label: 'Geolocalização' },
-  { type: 'divider' },
-  { key: '6', icon: <SettingOutlined />, label: 'Configurações' },
-];
-
-const PlaceholderContent = ({ page }) => (
-  <div style={{ padding: 50, textAlign: 'center', minHeight: '80vh' }}>
-    <Title level={2}>Página de {page}</Title>
-    <p>O conteúdo específico para {page}.</p>
-    <Result
-      status="404"
-      title="404"
-      subTitle="Sorry, the page you visited does not exist."
-    // extra={<Button type="primary">Back Home</Button>}
-    />
-
-  </div>
-);
-
-
 function App() {
   const [collapsed, setCollapsed] = useState(false);
-  const [currentView, setCurrentView] = useState('1');
 
-  const currentPage = menuItems.find(item => item.key === currentView);
-  const pageTitle = currentPage ? currentPage.label : 'Dashboard';
+  const location = useLocation();
 
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
   };
 
 
-  const renderContent = () => {
-    switch (currentView) {
-      case '1':
-        return (
-          <div>
-            {/* <Title level={3}>Dashboard</Title> */}
-            {/* {[1].map(i => <ProjectExplorer key={i} index={i} />)} */}
-            <PlaceholderContent page="Dashboard" />
-            {/* <ProjectExplorer /> */}
-            <TestPage />
-          </div>
-        );
-      case '2':
-        return (
-          <div>
-            {/* <Title level={3}>Pipelines</Title> */}
-            <PlaceholderContent page="Pipelines" />
-            {/* <SystemPerformanceMonitor /> */}
-          </div>
-        )
-      case '3':
-        return (
-          <div>
-            {/* <Title level={3}>Jobs</Title> */}
-            {/* <PlaceholderContent page="Jobs"/>; */}
-            {/* {selectedProject ? (
-              <ProjectDetailView
-                projectName={selectedProject}
-                onBack={() => handleProjectSelect(null)}
-              />
-            ) : (
-              )} */}
+  const menuItems = [
+    // { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
+    { key: '/Dashboards', icon: <AppstoreOutlined />, label: <Link to="/Dashboards">Dashboard</Link> },
+    { key: '/projects', icon: <ContainerOutlined />, label: <Link to="/projects">Projects</Link> },
+    { key: '/pipelines', icon: <PartitionOutlined />, label: <Link to="/pipelines">Pipelines</Link> },
+    { key: '/scripts', icon: <CodeOutlined />, label: <Link to="/scripts">Scripts</Link> },
+    { type: 'divider' },
+    { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Configurações</Link> },
+  ];
 
-              <ProjectPage/>
-              {/* <ProjectExplorer/> */}
-          </div>
-        )
-      case '4':
-        return (
-          <div>
-            {/* <Title level={3}>Scripts</Title> */}
-            {/* <PlaceholderContent page="Scripts" />; */}
-
-              <SystemPerformanceMonitor/>
-          </div>
-        )
-      // case '5':
-      //   return (
-      //     <div>
-      //       {/* <Title level={3}>Geolocalização</Title> */}
-      //       <PlaceholderContent page="Geolocalização" />;
-      //     </div>
-      //   )
-      case '6':
-        return (
-          <div>
-            {/* <Title level={3}>Configurações</Title> */}
-            <PlaceholderContent page="Configurações" />;
-          </div>
-        )
-      default:
-        return (
-          <div>
-            {/* <Title level={3}>Dashboard</Title> */}
-            <PlaceholderContent page="Dashboard" />;
-          </div>
-        )
-    }
-  };
-
+  const currentPage = menuItems.find(item => item.key === location.pathname);
+  const pageTitle = currentPage ? currentPage.label.props.children : 'Dashboard';
   return (
     <Layout style={{ height: '100vh' }}>
       <Sider
@@ -147,6 +56,8 @@ function App() {
           transition: 'all 0.2s',
         }}
       >
+        <a href='/'>
+        
         <div
           className="logo-container"
           style={{
@@ -165,11 +76,12 @@ function App() {
             </Title>
           )}
         </div>
+        </a>
 
         <Menu
           mode="inline"
-          selectedKeys={[currentView]}
-          onClick={(e) => setCurrentView(e.key)}
+          selectedKeys={[location.pathname]}
+          // onClick={(e) => setCurrentView(e.key)}
           items={menuItems}
           style={{ borderRight: 0, backgroundColor: colors.white }}
         />
@@ -217,7 +129,8 @@ function App() {
             padding: '24px',
           }}
         >
-          {renderContent()}
+          {/* {renderContent()} */}
+          <Outlet />
           <Footer style={{ textAlign: 'center', backgroundColor: colors.background, color: colors.textMedium }}>
             PhyloPipeline ©{new Date().getFullYear()} Created by JohKemPo
           </Footer>

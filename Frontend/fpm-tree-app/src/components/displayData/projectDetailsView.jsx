@@ -15,7 +15,7 @@ const ProjectDetailView = ({ projectName, onBack }) => {
         socket.onmessage = (event) => {
             const msg = JSON.parse(event.data);
             setLogs(prevLogs => [...prevLogs, msg]);
-            console.log(`Received log for ${projectName}:`, msg);
+            // console.log(`Received log for ${projectName}:`, msg);
         };
         return () => socket.close();
     }, [projectName]);
