@@ -10,6 +10,11 @@ import {
 const { Text } = Typography;
 
 const ProjectsCardsView = ({ projects, statusMap, onProjectSelect }) => {
+
+    if (projects.length === 0) {
+        return <Empty description="Nenhum projeto encontrado." />;
+    }
+
     return (
         <Row gutter={[12, 12]}>
             {projects.length > 0 ? projects.map(job => (
@@ -22,10 +27,16 @@ const ProjectsCardsView = ({ projects, statusMap, onProjectSelect }) => {
                         <Space direction="vertical" style={{ width: '100%' }}>
                             <Row justify="space-between"><Text type="secondary">Iniciado</Text><Text>{new Date(job.last_modified).toLocaleString('pt-BR')}</Text></Row>
                             <Row justify="space-between"><Text type="secondary">Duração</Text><Text>--</Text></Row>
-                            <Row justify="space-between"><Text type="secondary">Input</Text><Text><FileOutlined/> Zika 2019</Text></Row>
-                            <Row justify="space-between"><Text type="secondary">Etapa</Text><Text>Alinhamento</Text></Row>
+                            <Row justify="space-between">
+                                <Text type="secondary">Input</Text>
+                                <Text ellipsis={{ tooltip: job.details?.input_file }}><FileOutlined style={{marginRight: 4}}/>{job.details?.input_file || '...'}</Text>
+                            </Row>
+                            <Row justify="space-between">
+                                <Text type="secondary">Etapa</Text>
+                                <Text>{job.details?.current_step || '...'}</Text>
+                            </Row>
                             {
-                                job.status === 'running' ? <Progress percent={0} status />
+                                job.status === 'running' ? <Progress percent={job.progress} status />
                                     : job.status === 'completed' ? <Progress percent={100} status />
                                         : job.status === 'failed' ? <Progress percent={100} status="exception" />
                                             : <Text type="secondary">Buscando <LoadingOutlined /></Text>

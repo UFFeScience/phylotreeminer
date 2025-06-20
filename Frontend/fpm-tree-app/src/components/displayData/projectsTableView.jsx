@@ -29,6 +29,7 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
                 text: value.text,
                 value: key,
             })),
+            sorter: (a, b) => a.status.localeCompare(b.status),
             onFilter: (value, record) => record.status === value,
             render: (status) => {
                 const statusInfo = statusMap[status] || {};
@@ -39,25 +40,33 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
             title: 'Progresso',
             key: 'progress',
             render: (record) => (
-                record.status === 'running' ? <Progress percent={0}status /> 
+                record.status === 'running' ? <Progress percent={record.progress}status /> 
                 : record.status === 'completed' ? <Progress percent={100}status />  
                 : record.status === 'failed' ? <Progress percent={100} status="exception" /> 
                 : <Text type="secondary">Buscando <LoadingOutlined /></Text>
             )
         },
         {
-            title: 'Iniciado em',
+            title: 'Última modificação',
             dataIndex: 'last_modified',
             key: 'last_modified',
             sorter: (a, b) => new Date(a.last_modified) - new Date(b.last_modified),
             render: (date) => new Date(date).toLocaleString('pt-BR'),
         },
+         {
+            title: 'Input',
+            key: 'input',
+            render: (_, record) => (
+                <Text>
+                    <FileOutlined style={{ marginRight: 8 }} />
+                    {record.details?.input_file || '...'}
+                </Text>
+            ),
+        },
         {
-            title: 'Input data',
-            dataIndex: 'input_data',
-            key: 'input_data',
-            
-            render: () => <Text> <FileOutlined /> Data testset </Text>,
+            title: 'Etapa Atual',
+            key: 'step',
+            render: (_, record) => <Text>{record.details?.current_step || '...'}</Text>,
         },
         {
             title: 'Ações',

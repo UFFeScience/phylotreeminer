@@ -185,7 +185,7 @@ const PipelineConfigurator = () => {
 
             tree_config: {
                 mode: trees.mode,
-                ignore_mode: trees.mode === 'auto' ? (Array.isArray(trees.ignore_mode) ? trees.ignore_mode.join(',') : '') : '',
+                ignore_mode: trees.mode === 'auto' ? (Array.isArray(trees.ignore_mode) ? trees.ignore_mode.join(',') : '') : 'parsimony',
                 construct_tree_method: trees.mode === 'manual' ? trees.construct_method : 'distance',
                 align_method: trees.mode === 'manual' ? trees.alignment_method : 'mafft',
                 input_path: `./data/${dataset.name || 'unknown_dataset.fasta'}`,
