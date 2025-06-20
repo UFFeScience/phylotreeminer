@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import {
     Select, Typography, Steps, Form, InputNumber, Upload,
     Descriptions, message, Card, Row, Col, Button, Input,
@@ -17,6 +17,7 @@ const PipelineConfigurator = () => {
     const [current, setCurrent] = useState(0);
     const [form] = Form.useForm();
     const [messageInfo, contextHolder] = message.useMessage();
+    const [dataFolders, setDataFolders] = useState([]);
     const navigate = useNavigate();
 
     const ref1 = useRef(null);
@@ -65,6 +66,30 @@ const PipelineConfigurator = () => {
         dataset: null,
     });
 
+
+    const API_BASE_URL = 'http://localhost:8000';
+
+    const fetchFoldersData = async () => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/dataFolders`);
+            if (!response.ok) throw new Error("Falha ao carregar dados.");
+
+            const json = await response.json();
+            const folders = Array.isArray(json) ? json : [];
+            setDataFolders(folders.map((folder) => ({
+                value: folder.name,
+                label: folder.name
+            })));
+
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    useEffect(() => {
+        fetchFoldersData();
+    }, []);
+
     const handleNext = async () => {
         if (current === 0) {
             try {
@@ -75,13 +100,23 @@ const PipelineConfigurator = () => {
                         output_dir: `projects/${values.project_name}/out/`,
                         log_file: `projects/${values.project_name}/out/outputs/log_setup_${new Date().toISOString().split('T')[0]}.log`,
                     },
-                    trees: values.trees,
+
                     subtrees: {
                         ...(values.subtrees || {}),
                         input_format: values.trees?.output_format || 'nexus',
                     },
                     subtree_mining: values.subtree_mining,
                 };
+
+                if (values.trees?.mode === 'auto') {
+                    finalConfig.trees = {
+                        mode: 'auto',
+                        ignore_mode: values.trees.ignore_mode,
+                        output_format: 'nexus'
+                    };
+                } else {
+                    finalConfig.trees = values.trees;
+                }
                 finalConfig.subtrees.input_format = finalConfig.trees.output_format;
 
                 setPipelineData(prev => ({ ...prev, config: finalConfig }));
@@ -100,11 +135,31 @@ const PipelineConfigurator = () => {
 
     const handlePrev = () => setCurrent(current - 1);
 
-    const handleStartWorkflow = () => {
+    const handleStartWorkflow = async (projectName) => {
         const finalPayload = convertToFinalFormat(pipelineData);
-        console.log("Iniciando Workflow com os seguintes dados:", JSON.stringify(finalPayload, null, 2));
-        messageInfo.success('Workflow iniciado! Veja o progresso na aba "Jobs".');
-        navigate('/projects');
+      
+        console.log(`Iniciando Workflow para o projeto '${projectName}' com os seguintes dados:`, JSON.stringify(finalPayload, null, 2));
+        try {                   
+            const response = await fetch(`http://localhost:8000/projects/${projectName}/run`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ configs: finalPayload }),
+            });
+
+            if (!response.ok) {     
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `Erro do servidor: ${response.status}`);
+            }
+
+            messageInfo.success('Workflow iniciado! Acompanhe o progresso na página de projetos.');
+            navigate('/projects');
+        } catch (error) {
+           
+            console.error("Falha ao iniciar o workflow:", error);
+            messageInfo.error(`Não foi possível iniciar o workflow: ${error.message}`);
+        }
     };
 
 
@@ -120,6 +175,8 @@ const PipelineConfigurator = () => {
         const projectName = general.project_name || 'default_project';
         const outputPath = `./projects/#1/out`;
 
+
+
         const finalFormat = {
 
             log_file: true,
@@ -127,24 +184,24 @@ const PipelineConfigurator = () => {
             output_log: outputPath,
 
             tree_config: {
-                mode: trees.mode ?? 'auto',
-                ignore_mode: Array.isArray(trees.ignore_mode) ? trees.ignore_mode.join(',') : '',
-                construct_tree_method: trees.distance_method === 'Neighbor-Joining  (NJ)' ? 'nj' : trees.distance_method,
-                align_method: trees.alignment_method ?? 'mafft',
+                mode: trees.mode,
+                ignore_mode: trees.mode === 'auto' ? (Array.isArray(trees.ignore_mode) ? trees.ignore_mode.join(',') : '') : '',
+                construct_tree_method: trees.mode === 'manual' ? trees.construct_method : 'distance',
+                align_method: trees.mode === 'manual' ? trees.alignment_method : 'mafft',
                 input_path: `./data/${dataset.name || 'unknown_dataset.fasta'}`,
-                output_path: `${outputPath}`,
-                output_format: trees.output_format ?? 'nexus',
+                output_path: `${outputPath}/Trees`,
+                output_format: trees.output_format || 'nexus',
             },
 
             subtree_config: {
-                construct_tree_method: subtrees.method ?? 'parsimony',
+                construct_tree_method: subtrees.method || 'parsimony',
                 input_path: `${outputPath}/Trees`,
-                output_path: `${outputPath}`,
-                input_format: subtrees.input_format ?? 'nexus',
-                output_format: subtrees.output_format ?? 'nexus',
-                resume_infos: subtrees.resume_infos ?? false,
-                save_metadata: subtrees.save_metadata ?? false,
-                subtree_miner: subtrees.subtree_miner ?? false,
+                output_path: `${outputPath}/Subtrees`,
+                input_format: subtrees.input_format || 'nexus',
+                output_format: subtrees.output_format || 'nexus',
+                resume_infos: subtrees.resume_infos || false,
+                save_metadata: subtrees.save_metadata || false,
+                subtree_miner: subtrees.subtree_miner || false,
             }
         };
 
@@ -228,15 +285,25 @@ const PipelineConfigurator = () => {
                             </Form.Item>
                         </Col>
                     </Row>
+                    <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }}>
+                        <Col span={6}>
+                            <Form.Item name={['trees', 'ignore_mode']} label="Ignorar Métodos (Opcional)" initialValue="parsimony">
+                                <Select mode="multiple" placeholder="Selecione métodos a ignorar no modo auto" allowClear>
+                                    <Option value="distance">Distance</Option>
+                                    <Option value="parsimony">Parsimônia</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
 
                     {treeMode === 'manual' && (
                         <Row gutter={24}>
                             <Col span={6}>
-                                <Form.Item name={['trees', 'distance_method']} label="Método de Construção" initialValue="Neighbor-Joining  (NJ)">
+                                <Form.Item name={['trees', 'construct_method']} label="Método de Construção" initialValue="distance">
                                     <Select>
-                                        <Option value="nj"> Neighbor-Joining  (NJ)</Option>
-                                        <Option value="upgma">UPGMA</Option>
+                                        <Option value="distance"> Distances</Option>
+                                        <Option value="parsimony">Parsimony</Option>
                                     </Select>
                                 </Form.Item>
                             </Col>
@@ -248,18 +315,16 @@ const PipelineConfigurator = () => {
                             </Form.Item>
                             </Col>
                             <Col span={6}>
-                                <Form.Item name={['trees', 'output_format']} label="Formato de Saída" initialValue="nexus">
+                                <Form.Item name={['trees', 'input_format']} label="Formato de Entrada" initialValue="nexus">
                                     <Select><Option value="nexus">Nexus (.nexus)</Option><Option value="nwk">Newick (.nwk)</Option></Select>
                                 </Form.Item>
                             </Col>
                             <Col span={6}>
-                                <Form.Item name={['trees', 'ignore_mode']} label="Ignorar Métodos (Opcional)" initialValue="Parsimônia">
-                                    <Select mode="multiple" placeholder="Selecione métodos a ignorar no modo auto" allowClear>
-                                        <Option value="clustalw">ClustalW</Option>
-                                        <Option value="parsimony">Parsimônia</Option>
-                                    </Select>
+                                <Form.Item name={['trees', 'output_format']} label="Formato de Saída" initialValue="nexus">
+                                    <Select><Option value="nexus">Nexus (.nexus)</Option><Option value="nwk">Newick (.nwk)</Option></Select>
                                 </Form.Item>
                             </Col>
+
                         </Row>
                     )}
 
@@ -267,10 +332,10 @@ const PipelineConfigurator = () => {
 
                     <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }} >
                         <Col span={8}>
-                            <Form.Item name={['subtrees', 'method']} label="Método de Construção" initialValue="parsimony">
+                            <Form.Item name={['subtrees', 'method']} label="Método de Construção" initialValue="distance">
                                 <Select>
-                                    <Option value="nj"> Neighbor-Joining  (NJ) </Option>
-                                    <Option value="clustalw">ClustalW</Option>
+                                    <Option value="distance"> Distance </Option>
+                                    <Option value="parsimony">Parsimony</Option>
                                 </Select>
                             </Form.Item>
                         </Col>
@@ -311,7 +376,7 @@ const PipelineConfigurator = () => {
                                 <Divider ref={ref3} orientation="left" style={{ color: '#ADADADFF' }}>Configurações de Mineração de Subárvores</Divider>
 
                                 <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }} >
-                                    <Col span={8}>
+                                    {/* <Col span={8}>
                                         <Form.Item name={['subtree_mining', 'mode']} label="Modo de Mineração" initialValue="distance">
                                             <Select>
                                                 <Option value="OFST">OFST (Only of the Same Tree)</Option>
@@ -320,7 +385,7 @@ const PipelineConfigurator = () => {
                                             </Select>
                                         </Form.Item>
 
-                                    </Col>
+                                    </Col> */}
                                     <Col span={8}>
 
                                         <Form.Item name={['subtree_mining', 'save_fpmax']} label="Mineração de Subárvores Frequêntes" valuePropName="checked" initialValue={true}>
@@ -328,9 +393,6 @@ const PipelineConfigurator = () => {
                                         </Form.Item>
 
                                     </Col>
-                                </Row>
-
-                                <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }} >
                                     <Col span={8}>
 
                                         <Form.Item name={['subtree_mining', 'support_fpmax']} label="Suporte FPMAX" initialValue="auto">
@@ -349,6 +411,8 @@ const PipelineConfigurator = () => {
                                         )}
                                     </Col>
                                 </Row>
+
+
                             </div>
                         )
                     }
@@ -365,9 +429,9 @@ const PipelineConfigurator = () => {
                     <Select
                         placeholder="Selecione um dataset existente (Exemplo)"
                         style={{ width: '100%', marginBottom: 24 }}
+                        options={dataFolders}
                         onChange={(value) => setPipelineData(prev => ({ ...prev, dataset: { name: value } }))}>
-                        <Option value="zika_virus_americas.fasta">zika_virus_americas.fasta</Option>
-                        <Option value="dengue_type2_asia.fasta">dengue_type2_asia.fasta</Option>
+
                     </Select>
 
                     <Text strong>OU</Text>
@@ -461,7 +525,7 @@ const PipelineConfigurator = () => {
                         <div style={{ marginTop: 24 }}>
                             {current > 0 && (<Button style={{ margin: '0 8px' }} onClick={handlePrev}>Anterior</Button>)}
                             {current < steps.length - 1 && (<Button type="primary" onClick={handleNext}>Próximo</Button>)}
-                            {current === steps.length - 1 && (<Button type="primary" icon={<RocketOutlined />} onClick={handleStartWorkflow} disabled={!pipelineData.config || !pipelineData.dataset}>Iniciar Workflow</Button>)}
+                            {current === steps.length - 1 && (<Button type="primary" icon={<RocketOutlined />} onClick={() => handleStartWorkflow(pipelineData.config?.general.project_name)} disabled={!pipelineData.config || !pipelineData.dataset}>Iniciar Workflow</Button>)}
                         </div>
                     </Col>
                 </Row>
