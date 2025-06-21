@@ -37,7 +37,7 @@ function App() {
     { key: '/Dashboards', icon: <AppstoreOutlined />, label: <Link to="/Dashboards">Dashboard</Link> },
     { key: '/projects', icon: <ContainerOutlined />, label: <Link to="/projects">Projects</Link> },
     { key: '/pipelines', icon: <PartitionOutlined />, label: <Link to="/pipelines">Pipelines</Link> },
-    { key: '/scripts', icon: <CodeOutlined />, label: <Link to="/scripts">Scripts</Link> },
+    // { key: '/scripts', icon: <CodeOutlined />, label: <Link to="/scripts">Scripts</Link> },
     { type: 'divider' },
     { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Configurações</Link> },
   ];

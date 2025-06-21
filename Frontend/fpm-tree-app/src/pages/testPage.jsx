@@ -2,13 +2,13 @@ import React from 'react';
 import { Layout, FloatButton, Result } from 'antd';
 import { CommentOutlined, QuestionOutlined } from '@ant-design/icons';
 import { colors } from '../themes';
-
+import mock from '../assets/mock.png'
 
 const TestPage = () => {
     return (
         <div
             style={{
-                height: '80vh',
+                minHeight: '80vh',
                 borderRadius: 8,
                 backgroundColor: '#ffffff',
                 padding: 24
@@ -16,6 +16,9 @@ const TestPage = () => {
             }}
         >
             <>
+                <div style={{width:'100%',alignContent:'center', alignItems:'center'}}>
+                    <img src={mock}></img>
+                </div>
                 <FloatButton.Group
                     trigger="click"
                     // type="primary"
