@@ -13,6 +13,14 @@ const { Title, Paragraph } = Typography;
 import fundo from '../assets/bck1.jpg';
 import Logo from './componentsHomepage/logo'
 import AppAppBar from './componentsHomepage/appBar';
+import Hero from './componentsHomepage/hero';
+import Highlights from './componentsHomepage/highlights';
+import Features from './componentsHomepage/features';
+import FooterComponent from './componentsHomepage/footer';
+
+import Divider from '@mui/material/Divider';
+import FAQ from './componentsHomepage/faq';
+
 
 const HomePage = () => {
 
@@ -22,10 +30,10 @@ const HomePage = () => {
         navigate('/Dashboards');
     };
     return (
-        <div style={{ backgroundImage: fundo }}>
+        <div>
 
             <Layout style={{ backgroundColor: '#fff', minHeight: '100vh' }}>
-                <Header style={{
+                {/* <Header style={{
                     background: '#fff',
                     borderBottom: '1px solid #DADADAFF',
                     display: 'flex',
@@ -34,7 +42,6 @@ const HomePage = () => {
                 }}>
                     <a href='/'>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
-                            {/* <ExperimentOutlined style={{ fontSize: '28px', color: '#1890ff' }} /> */}
                             <Logo color={'#1890ff'}/>
 
                             <Title level={4} style={{ marginBottom: 0, marginLeft: 12 }}>PhyloPipeline</Title>
@@ -45,13 +52,13 @@ const HomePage = () => {
                         <Button type="text" href="#about">Sobre</Button>
                         <Button onClick={handleStartWorking}>Acessar Ferramenta</Button>
                     </Space>
-                </Header>
+                </Header> */}
 
-                <Content style={{ padding: '50px', backgroundColor: '#EEFAFFFF' }}>
-                    
-                    {/* <AppAppBar/> */}
+                <AppAppBar />
+                <Hero />
+                <Content id='highlights' style={{ padding: '50px', backgroundColor: '#EEFAFF00' }}>
 
-                    <Row align="middle" justify="center" style={{ minHeight: 'calc(100vh - 100px)', textAlign: 'center', }}>
+                    {/* <Row align="middle" justify="center" style={{ minHeight: 'calc(100vh - 100px)', textAlign: 'center', }}>
                         <Col>
                             <Title style={{ fontSize: '4rem', marginBottom: 24 }}>
                                 Simplificando a Análise Filogenética Complexa
@@ -68,16 +75,16 @@ const HomePage = () => {
                                 </Button>
                             </Space>
                         </Col>
-                    </Row>
+                    </Row> */}
 
                     <div id="features" style={{
-                        padding: '80px 0',
-                        backgroundColor: '#FFFFFFFF',
-                        borderRadius: 8,
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                        // padding: '80px 0',
+                        // backgroundColor: '#FFFFFFFF',
+                        // borderRadius: 8,
+                        // boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                     }}>
-                        <Title level={2} style={{ textAlign: 'center', marginBottom: 64 }}>Nossos Recursos</Title>
-                        <Row gutter={[32, 32]} justify="center" style={{}}>
+                        {/* <Title level={2} style={{ textAlign: 'center', marginBottom: 64 }}>Nossos Recursos</Title> */}
+                        {/* <Row gutter={[32, 32]} justify="center" style={{}}>
                             <Col>
                                 <Card hoverable style={{ width: 400, height: 180 }}>
                                     <Card.Meta
@@ -114,13 +121,20 @@ const HomePage = () => {
                                     />
                                 </Card>
                             </Col>
-                        </Row>
+                        </Row> */}
+                        <Highlights />
                     </div>
                 </Content>
+                    <Features />
 
-                <Footer style={{ textAlign: 'center', background: '#FFFFFFEC' }}>
-                    PhyloPipeline ©{new Date().getFullYear()} Created by JohKemPo
-                </Footer>
+                    <Divider />
+                    <FAQ />
+                <Divider />
+
+                <FooterComponent />
+                {/* <Footer style={{ textAlign: 'center', background: '#FFFFFFEC', color: '#B4B4B4FF'}}>
+                PhyloPipeline ©{new Date().getFullYear()} Created by JohKemPo
+                </Footer> */}
             </Layout>
         </div>
     );

@@ -17,6 +17,7 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 
 
 import { colors } from './themes'
+import Logo from './pages/componentsHomepage/logo';
 
 const { Header, Content, Sider, Footer } = Layout;
 const { Title } = Typography;
@@ -69,7 +70,7 @@ function App() {
             backgroundColor: colors.white,
           }}
         >
-          <ExperimentOutlined style={{ fontSize: '24px', color: colors.primary }} />
+          <Logo size='30px'/>
           {!collapsed && (
             <Title level={4} style={{ color: colors.textDark, marginBottom: 0, marginLeft: '12px', whiteSpace: 'nowrap' }}>
               PhyloPipeline
