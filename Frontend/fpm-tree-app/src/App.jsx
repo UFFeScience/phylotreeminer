@@ -3,15 +3,13 @@ import { Layout, Menu, Button, Typography, Space, Flex } from 'antd';
 import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
-  AppstoreOutlined,
   ContainerOutlined,
-  SettingOutlined,
-  ExperimentOutlined,
-  CodeOutlined,
+  ReadOutlined,
   SearchOutlined,
   BellOutlined,
   HomeOutlined,
-  PartitionOutlined
+  PartitionOutlined,
+  SlidersOutlined
 } from '@ant-design/icons';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 
@@ -23,7 +21,7 @@ const { Header, Content, Sider, Footer } = Layout;
 const { Title } = Typography;
 
 function App() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const location = useLocation();
 
@@ -34,12 +32,12 @@ function App() {
 
   const menuItems = [
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">Home</Link> },
-    { key: '/Dashboards', icon: <AppstoreOutlined />, label: <Link to="/Dashboards">Dashboard</Link> },
+    // { key: '/Dashboards', icon: <AppstoreOutlined />, label: <Link to="/Dashboards">Dashboard</Link> },
     { key: '/projects', icon: <ContainerOutlined />, label: <Link to="/projects">Projects</Link> },
-    { key: '/pipelines', icon: <PartitionOutlined />, label: <Link to="/pipelines">Pipelines</Link> },
-    // { key: '/scripts', icon: <CodeOutlined />, label: <Link to="/scripts">Scripts</Link> },
+    { key: '/workflow', icon: <PartitionOutlined />, label: <Link to="/workflow">Workflow Settings</Link> },
+    { key: '/analysis', icon: <SlidersOutlined />, label: <Link to="/analysis">Analysis</Link> },
     { type: 'divider' },
-    { key: '/settings', icon: <SettingOutlined />, label: <Link to="/settings">Configurações</Link> },
+    { key: '/doc', icon: <ReadOutlined />, label: <Link to="/doc">Documentation</Link> },
   ];
 
   const currentPage = menuItems.find(item => item.key === location.pathname);
@@ -109,13 +107,13 @@ function App() {
                 onClick={toggleCollapsed}
                 style={{ fontSize: '16px' }}
               />
-              <Title level={3} style={{ marginBottom: 0 }}>
+              <Title level={5} style={{ marginBottom: 0, color: "#8F8F8FFF" }}>
                 {pageTitle}
               </Title>
             </Space>
             <Space align="center" size="middle">
-              <Button shape="circle" icon={<SearchOutlined />} />
-              <Button shape="circle" icon={<BellOutlined />} />
+              <Button shape="circle" icon={<SearchOutlined />} disabled/>
+              <Button shape="circle" icon={<BellOutlined />} disabled/>
             </Space>
           </Flex>
 

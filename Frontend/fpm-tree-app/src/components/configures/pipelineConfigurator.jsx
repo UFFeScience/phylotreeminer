@@ -19,40 +19,7 @@ const PipelineConfigurator = () => {
     const [messageInfo, contextHolder] = message.useMessage();
     const [dataFolders, setDataFolders] = useState([]);
     const navigate = useNavigate();
-
-    const ref1 = useRef(null);
-    const ref2 = useRef(null);
-    const ref3 = useRef(null);
-    const ref4 = useRef(null);
-    const ref5 = useRef(null);
-    const ref6 = useRef(null);
-
     const [open, setOpen] = useState(false);
-
-    const stepsTour = [
-        {
-            title: 'Upload File',
-            description: 'Put your files here.',
-            cover: (
-                <img
-                    alt="tour.png"
-                    src="https://user-images.githubusercontent.com/5378891/197385811-55df8480-7ff4-44bd-9d43-a7dade598d70.png"
-                />
-            ),
-            target: () => ref1.current,
-        },
-        {
-            title: 'Save',
-            description: 'Save your changes.',
-            target: () => ref2.current,
-        },
-        {
-            title: 'Other Actions',
-            description: 'Click to see other actions.',
-            target: () => ref3.current,
-        },
-    ];
-
 
 
     const projectNameValue = Form.useWatch('project_name', form);
@@ -93,30 +60,40 @@ const PipelineConfigurator = () => {
     const handleNext = async () => {
         if (current === 0) {
             try {
-                const values = await form.validateFields();
+                const values = await form.validateFields({ recursive: true });
                 const finalConfig = {
                     general: {
-                        project_name: values.project_name,
-                        output_dir: `projects/${values.project_name}/out/`,
-                        log_file: `projects/${values.project_name}/out/outputs/log_setup_${new Date().toISOString().split('T')[0]}.log`,
+                        project_name: values.project_name.replace(/ /g, "_"),
+                        output_dir: `projects/${values.project_name.replace(/ /g, "_")}/out/`,
+                        log_file: `projects/${values.project_name.replace(/ /g, "_")}/out/outputs/log_setup_${new Date().toISOString().split('T')[0]}.log`,
                     },
 
                     subtrees: {
                         ...(values.subtrees || {}),
                         input_format: values.trees?.output_format || 'nexus',
                     },
+                    trees: {
+                        mode: values.trees?.mode === 'auto' ? 'auto' : values.trees?.construct_method,
+                        ignore_mode: values.trees?.ignore_mode || '',
+                        num_threads: values.trees?.num_threads || 1,
+                        construct_method: values.trees?.construct_method || 'distance',
+                        alignment_method: values.trees?.alignment_method || 'mafft',
+                        input_format: values.trees?.input_format || 'nexus',
+                        output_format: values.trees?.output_format || 'nexus',
+                    },
                     subtree_mining: values.subtree_mining,
                 };
 
-                if (values.trees?.mode === 'auto') {
-                    finalConfig.trees = {
-                        mode: 'auto',
-                        ignore_mode: values.trees.ignore_mode,
-                        output_format: 'nexus'
-                    };
-                } else {
-                    finalConfig.trees = values.trees;
-                }
+                // if (values.trees?.mode === 'auto') {
+                //     finalConfig.trees = {
+                //         mode: 'auto',
+                //         ignore_mode: values.trees.ignore_mode,
+                //         num_threads: values.trees.num_threads || 1,
+                //         output_format: 'nexus'
+                //     };
+                // } else {
+                //     finalConfig.trees = values.trees;
+                // }
                 finalConfig.subtrees.input_format = finalConfig.trees.output_format;
 
                 setPipelineData(prev => ({ ...prev, config: finalConfig }));
@@ -138,7 +115,7 @@ const PipelineConfigurator = () => {
     const handleStartWorkflow = async (projectName) => {
         const finalPayload = convertToFinalFormat(pipelineData);
 
-        console.log(`Iniciando Workflow para o projeto '${projectName}' com os seguintes dados:`, JSON.stringify(finalPayload, null, 2));
+        // console.log(`Iniciando Workflow para o projeto '${projectName}' com os seguintes dados:`, JSON.stringify(finalPayload, null, 2));
         try {
             const response = await fetch(`http://localhost:8000/projects/${projectName}/run`, {
                 method: 'POST',
@@ -173,7 +150,7 @@ const PipelineConfigurator = () => {
         } = config;
 
         const projectName = general.project_name || 'default_project';
-        const outputPath = `./projects/#1/out`;
+        const outputPath = `./projects/#/out`;
 
 
 
@@ -184,10 +161,11 @@ const PipelineConfigurator = () => {
             output_log: outputPath,
 
             tree_config: {
-                mode: trees.mode,
-                ignore_mode: trees.mode === 'auto' ? (Array.isArray(trees.ignore_mode) ? trees.ignore_mode.join(',') : '') : 'parsimony',
+                mode:trees.mode === 'auto' ? 'auto' : trees.construct_method,
+                ignore_mode: (Array.isArray(trees.ignore_mode) ? trees.ignore_mode.join(',') : ''),
                 construct_tree_method: trees.mode === 'manual' ? trees.construct_method : 'distance',
                 align_method: trees.mode === 'manual' ? trees.alignment_method : 'mafft',
+                num_threads: trees.num_threads || 1,
                 input_path: `./data/${dataset.name || 'unknown_dataset.fasta'}`,
                 output_path: `${outputPath}/Trees`,
                 output_format: trees.output_format || 'nexus',
@@ -233,7 +211,7 @@ const PipelineConfigurator = () => {
                 };
             });
 
-            console.log('Formatted Datas:', formattedDatas);
+            // console.log('Formatted Datas:', formattedDatas);
             return (
                 <Descriptions
                     column={1}
@@ -253,6 +231,47 @@ const PipelineConfigurator = () => {
     };
 
 
+    const ref1 = useRef(null);
+    const ref2 = useRef(null);
+    const ref3 = useRef(null);
+    const ref4 = useRef(null);
+    const ref5 = useRef(null);
+    const ref6 = useRef(null);
+
+    const stepsTour = [
+        {
+            title: 'Project Name',
+            description: 'Start by defining a unique name for your project. This will be used to create directories and organize all output files.',
+            target: () => ref1.current,
+        },
+        {
+            title: 'Tree Building Settings',
+            description: 'In this section, you define how the main phylogenetic trees will be generated. Choose between automatic mode to test various combinations or manual mode for greater control.',
+            target: () => ref2.current,
+        },
+        {
+            title: 'Subtree Building Settings',
+            description: 'Here you configure how subtrees will be extracted from the full trees. Define the construction method and formats.',
+            target: () => ref3.current,
+        },
+        {
+            title: 'Enable Subtree Mining',
+            description: 'Check this option to enable the pattern mining step, which searches for frequent subtrees in your dataset.',
+            target: () => ref4.current,
+        },
+        {
+            title: 'Proceed to Next Step',
+            description: 'After reviewing all the settings on this page, click "Next" to proceed to dataset selection.',
+            target: () => ref5.current,
+        },
+        {
+            title: 'Need Help?',
+            description: 'You can click here at any time to reopen this guide.',
+            target: () => ref6.current,
+        },
+
+    ];
+
     const steps = [
         {
             title: '1. Workflow Configuration',
@@ -261,14 +280,16 @@ const PipelineConfigurator = () => {
             icon: <SettingOutlined />,
             content: (
                 <Form form={form} layout="vertical" name="pipeline_config">
-                    <Divider ref={ref1} orientation="left" style={{ color: '#ADADADFF' }}>Tree Building Settings</Divider>
+                    <Divider ref={ref2} orientation="left" style={{ color: '#ADADADFF' }}>Tree Building Settings</Divider>
 
                     <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }} >
                         <Col span={8}>
+                            <span ref={ref1}>
 
-                            <Form.Item name="project_name" label="Project Name" rules={[{ required: true, message: 'Please enter the project name!' }]}>
-                                <Input placeholder="Ex: Analise_Zika_Global" />
-                            </Form.Item>
+                                <Form.Item name="project_name" label="Project Name" rules={[{ required: true, message: 'Please enter the project name!' }]}>
+                                    <Input placeholder="Ex: Analise_Zika_Global" />
+                                </Form.Item>
+                            </span>
                         </Col>
                         <Col span={8}>
 
@@ -279,7 +300,7 @@ const PipelineConfigurator = () => {
 
                         <Col span={8}>
 
-                            <Form.Item name={['trees', 'mode']} label="Construction Mode" initialValue="auto">
+                            <Form.Item name={['trees', 'mode']} label="Construction Mode" initialValue="auto" tooltip="Combination of all available methods for constructing trees.">
                                 <Radio.Group>
                                     <Radio value="auto">Automatic (all combinations)</Radio>
                                     <Radio value="manual">Manual</Radio>
@@ -294,6 +315,11 @@ const PipelineConfigurator = () => {
                                     <Option value="distance">Distance</Option>
                                     <Option value="parsimony">Parsimônia</Option>
                                 </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={6}>
+                            <Form.Item name={['trees', 'num_threads']} label="Number of threads" tooltip="Number of threads to be used in alignment (parallelization)" initialValue={1}>
+                                <InputNumber min={1} max={32} step={1} style={{ width: '100%' }} />
                             </Form.Item>
                         </Col>
                     </Row>
@@ -326,11 +352,19 @@ const PipelineConfigurator = () => {
                                     <Select><Option value="nexus">Nexus (.nexus)</Option><Option value="nwk">Newick (.nwk)</Option></Select>
                                 </Form.Item>
                             </Col>
+                            {/* <Col span={6}>
+                            <Form.Item name={['trees', 'construct_mode']} label="Construction Mode" initialValue="distance">
+                                <Select>
+                                    <Option value="distance">Distance Matrix only</Option>
+                                    <Option value="parsimony">Parsimony only</Option>
+                                </Select>
+                            </Form.Item>
+                            </Col> */}
 
                         </Row>
                     )}
 
-                    <Divider ref={ref2} orientation="left" style={{ color: '#ADADADFF' }}>Subtree Construction Settings</Divider>
+                    <Divider ref={ref3} orientation="left" style={{ color: '#ADADADFF' }}>Subtree Construction Settings</Divider>
 
                     <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }} >
                         <Col span={8}>
@@ -369,13 +403,13 @@ const PipelineConfigurator = () => {
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}><Form.Item name={['subtrees', 'subtree_miner']} valuePropName="checked" initialValue={true}><Checkbox>Perform Subtree Mining</Checkbox></Form.Item></Col>
+                        <Col span={8} ref={ref4}><Form.Item name={['subtrees', 'subtree_miner']} valuePropName="checked" initialValue={true}><Checkbox>Perform Subtree Mining</Checkbox></Form.Item></Col>
                     </Row>
                     {subtreeMinerMode &&
                         (
                             <div>
 
-                                <Divider ref={ref3} orientation="left" style={{ color: '#ADADADFF' }}>Subtree Mining Settings</Divider>
+                                <Divider orientation="left" style={{ color: '#ADADADFF' }}>Subtree Mining Settings</Divider>
 
                                 <Row gutter={{ xs: 8, sm: 16, md: 24, lg: 32 }} >
                                     {/* <Col span={8}>
@@ -447,6 +481,7 @@ const PipelineConfigurator = () => {
                             return false;
                         }}
                         onRemove={() => setPipelineData(prev => ({ ...prev, dataset: null }))}
+                        disabled
                     >
                         <p className="ant-upload-drag-icon"><UploadOutlined /></p>
                         <p className="ant-upload-text">Click or drag the .fasta file to this area</p>
@@ -497,9 +532,11 @@ const PipelineConfigurator = () => {
                 <Flex justify='space-between'>
 
                     <Title level={3}>New workflow settings</Title>
-                    <Button type="dashed" onClick={() => setOpen(!open)}>
-                        Need help?
-                    </Button>
+                    <span ref={ref6}>
+                        <Button type="dashed" onClick={() => setOpen(!open)}>
+                            Need help?
+                        </Button>
+                    </span>
                 </Flex>
                 <Tour open={open} onClose={() => setOpen(!open)} steps={stepsTour} />
 
@@ -526,7 +563,7 @@ const PipelineConfigurator = () => {
                         <div style={{ marginBottom: 64 }} >{steps[current].content}</div>
                         <div style={{ marginTop: 24 }}>
                             {current > 0 && (<Button style={{ margin: '0 8px' }} onClick={handlePrev}>Back</Button>)}
-                            {current < steps.length - 1 && (<Button type="primary" onClick={handleNext}>Next</Button>)}
+                            {current < steps.length - 1 && (<span ref={ref5}><Button type="primary" onClick={handleNext}>Next</Button></span>)}
                             {current === steps.length - 1 && (<Button type="primary" icon={<RocketOutlined />} onClick={() => handleStartWorkflow(pipelineData.config?.general.project_name)} disabled={!pipelineData.config || !pipelineData.dataset}>Start Workflow</Button>)}
                         </div>
                     </Col>

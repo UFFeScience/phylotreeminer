@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Card, Row, Col, Typography, Button, Space, Select, Input, Alert,
-    Spin, Tag, Empty, Segmented, Table, Progress, Dropdown, Menu
+    Spin, Segmented
 } from 'antd';
 import {
     CheckCircleOutlined, SyncOutlined, ClockCircleOutlined, CloseCircleOutlined,
-    FilterOutlined, AppstoreOutlined, TableOutlined, MoreOutlined
+    FilterOutlined, AppstoreOutlined, TableOutlined, PlusCircleOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -14,6 +14,8 @@ const { Search } = Input;
 
 import ProjectsCardsView from './projectsCardsView';
 import ProjectsTableView from './projectsTableView';
+import { useNavigate } from 'react-router-dom';
+
 
 const ProjectGallery = ({ onProjectSelect }) => {
     const [projects, setProjects] = useState([]);
@@ -23,8 +25,9 @@ const ProjectGallery = ({ onProjectSelect }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [viewMode, setViewMode] = useState('table');
-
-
+    
+    const navigate = useNavigate();
+    
     const socketsRef = useRef({});
 
     const API_BASE_URL = 'http://localhost:8000';
@@ -37,10 +40,12 @@ const ProjectGallery = ({ onProjectSelect }) => {
                 fetch(`${API_BASE_URL}/projects`),
                 fetch(`${API_BASE_URL}/projects/status`)
             ]);
-            if (!projectsRes.ok || !statusRes.ok) throw new Error("Falha ao carregar dados dos jobs.");
+            if (!projectsRes.ok || !statusRes.ok) throw new Error("Failed to load job data.");
             
             let projectsData = await projectsRes.json();
             const statusData = await statusRes.json();
+
+            console.log(progressData[0])
 
             if (projectsData.length > 0) {
                 const projectNames = projectsData.map(p => p.name);
@@ -78,7 +83,7 @@ const ProjectGallery = ({ onProjectSelect }) => {
                 return;
             }
 
-            console.log(`Conectando ao WebSocket para o projeto: ${projectName}`);
+            // console.log(`Conectando ao WebSocket para o projeto: ${projectName}`);
             const socket = new WebSocket(`${WS_BASE_URL}/ws/progress/${projectName}`);
             socketsRef.current[projectName] = socket;
 
@@ -93,7 +98,7 @@ const ProjectGallery = ({ onProjectSelect }) => {
                 }
 
                 if (data.type === 'workflow_complete' || data.type === 'workflow_failed') {
-                    console.log(`Workflow para ${projectName} finalizado. Atualizando status.`);
+                    // console.log(`Workflow para ${projectName} finalizado. Atualizando status.`);
                     fetchJobsData();
                     setProgressData(prevData => {
                         const newData = { ...prevData };
@@ -105,7 +110,7 @@ const ProjectGallery = ({ onProjectSelect }) => {
             };
 
             socket.onclose = () => {
-                console.log(`WebSocket para ${projectName} desconectado.`);
+                // console.log(`WebSocket para ${projectName} desconectado.`);
                 delete socketsRef.current[projectName];
             };
 
@@ -122,7 +127,7 @@ const ProjectGallery = ({ onProjectSelect }) => {
         });
 
         return () => {
-            console.log("Desmontando ProjectGallery, fechando todos os WebSockets.");
+            // console.log("Desmontando ProjectGallery, fechando todos os WebSockets.");
             Object.values(socketsRef.current).forEach(socket => {
                 if (socket.readyState === 1) {
                     socket.close();
@@ -135,19 +140,19 @@ const ProjectGallery = ({ onProjectSelect }) => {
 
     useEffect(() => {
         const intervalId = setInterval(() => {
-            console.log("Atualizando status dos jobs...");
+            // console.log("Atualizando status dos jobs...");
             fetchJobsData();
-        }, 10000);
+        }, 8000);
 
         return () => clearInterval(intervalId);
     }, [fetchJobsData]);
 
 
     const statusMap = {
-        completed: { color: 'green', icon: <CheckCircleOutlined />, text: 'Concluído' },
-        running: { color: 'blue', icon: <SyncOutlined spin />, text: 'Em Execução' },
-        idle: { color: 'gold', icon: <ClockCircleOutlined />, text: 'Aguardando' },
-        failed: { color: 'red', icon: <CloseCircleOutlined />, text: 'Falha' }
+        completed: { color: 'green', icon: <CheckCircleOutlined />, text: 'Completed' },
+        running: { color: 'blue', icon: <SyncOutlined spin />, text: 'In Progress' },
+        idle: { color: 'gold', icon: <ClockCircleOutlined />, text: 'Waiting' },
+        failed: { color: 'red', icon: <CloseCircleOutlined />, text: 'Failure' }
     };
 
     const filteredProjects = projects
@@ -166,12 +171,12 @@ const ProjectGallery = ({ onProjectSelect }) => {
             <Card style={{ marginBottom: 24 }}>
                 <Space direction="vertical" style={{ width: '100%' }} size="middle">
                     <Row justify="space-between" align="middle" gutter={[16, 16]}>
-                        <Col flex="auto"><Search placeholder="Buscar pelo nome do job..." onChange={(e) => setSearchTerm(e.target.value)} allowClear /></Col>
+                        <Col flex="auto"><Search placeholder="Search by project name..." onChange={(e) => setSearchTerm(e.target.value)} allowClear /></Col>
                         <Col>
                             <Space>
                                 <FilterOutlined />
                                 <Select defaultValue="all" style={{ width: 150 }} onChange={(value) => setStatusFilter(value)}>
-                                    <Option value="all">All Statuses</Option>
+                                    <Option value="all">All</Option>
                                     <Option value="running">In Progress</Option>
                                     <Option value="completed">Completed</Option>
                                     <Option value="idle">Waiting..</Option>
@@ -182,13 +187,14 @@ const ProjectGallery = ({ onProjectSelect }) => {
                         <Col>
                             <Segmented
                                 options={[
-                                    { label: 'Tabela', value: 'table', icon: <TableOutlined /> },
-                                    { label: 'Cards', value: 'cards', icon: <AppstoreOutlined /> },
+                                    { label: 'Table view', value: 'table', icon: <TableOutlined /> },
+                                    { label: 'Cards view', value: 'cards', icon: <AppstoreOutlined /> },
                                 ]}
                                 value={viewMode}
                                 onChange={setViewMode}
                             />
                         </Col>
+                        <Button color="default" variant="dashed" icon={<PlusCircleOutlined />} onClick={() => { navigate('/workflow'); }}>Create Project</Button>
                     </Row>
                 </Space>
             </Card>

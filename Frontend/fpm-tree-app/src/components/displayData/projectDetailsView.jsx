@@ -35,7 +35,7 @@ const ProjectDetailView = ({ projectName, onBack }) => {
     
     return (
         <div>
-            <Button onClick={onBack} style={{ marginBottom: 24 }}>← Return to Job Gallery</Button>
+            <Button onClick={onBack} style={{ marginBottom: 24 }}>← Return to Project Gallery</Button>
             <Title level={3}>Project Details: {projectName}</Title>
             <Row gutter={24}>
                 <Col xs={24} md={10}>

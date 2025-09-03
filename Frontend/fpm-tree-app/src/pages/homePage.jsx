@@ -27,7 +27,7 @@ const HomePage = () => {
     const navigate = useNavigate();
 
     const handleStartWorking = () => {
-        navigate('/Dashboards');
+        navigate('/projects');
     };
     return (
         <div>
@@ -128,7 +128,7 @@ const HomePage = () => {
                     <Features />
 
                     <Divider />
-                    <FAQ />
+                    {/* <FAQ /> */}
                 <Divider />
 
                 <FooterComponent />

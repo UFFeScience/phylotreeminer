@@ -5,6 +5,7 @@ import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 
 import GitHubIcon from '@mui/icons-material/GitHub';
+import { Button } from 'antd';
 
 
 const FooterComponent = () => (
@@ -43,20 +44,20 @@ const FooterComponent = () => (
         >
             <div>
                 <Typography variant="body2" color="text.secondary">
-                    &copy; {new Date().getFullYear()} PhyloTreeMiner@UFF
+                    Copyright {new Date().getFullYear()} - PhyloTreeMiner@UFF
                 </Typography>
             </div>
-            <Stack direction="row" spacing={1} useFlexGap>
-                <IconButton
-                    color="inherit"
-                    href="https://github.com/JohKemPo?tab=repositories"
-                    aria-label="GitHub"
-                    sx={{ alignSelf: 'center' }}
-                    
-                >
-                    <GitHubIcon />
-                </IconButton>
+            <Stack direction="column" spacing={1} useFlexGap>
+
+
+
+
+                <a href="https://www.ic.uff.br/" target="_blank">Computer Science Research Institute - UFF</a>
+                <a href="https://github.com/UFFeScience" target="_blank">PhyloTreeMiner - GitHub</a>
+                <a href="https://github.com/UFFeScience" target="_blank">UFFeScience</a>
             </Stack>
+
+
         </Box>
     </Container>
 );

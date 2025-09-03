@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -5,6 +6,9 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Literal, Optional, Any
 import os, datetime, mimetypes, asyncio, re, psutil, json
 import glob
+
+from src.routers import neo4j_router, ncbi_router
+from src.services.neo4j_services import neo4j_service
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_BASE_WORKFLOW = os.path.abspath(os.path.join(BASE_DIR, "../../BioComp_UFF"))
@@ -20,9 +24,16 @@ if not os.path.exists(WORKFLOW_SCRIPT_PATH):
      raise RuntimeError(f"O script do workflow não foi encontrado em: {WORKFLOW_SCRIPT_PATH}")
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await neo4j_service.connect()
+    yield 
+    await neo4j_service.close()
 
-# --- Middleware ---
+app = FastAPI(lifespan=lifespan)
+
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -32,10 +43,22 @@ app.add_middleware(
 )
 
 
-# --- Modelos Pydantic ---
+
+app.include_router(
+    neo4j_router.router,
+    prefix="/api/neo4j",
+    tags=["Neo4j"]
+)
+app.include_router(
+    ncbi_router.router,
+    prefix="/api/ncbi",
+    tags=["NCBI"]
+)
+
 class Project(BaseModel):
     name: str = Field(..., description="Nome do projeto.")
     last_modified: datetime.datetime = Field(..., description="Data da última modificação do diretório do projeto.")
+    duration: Optional[int] = Field(None, description="Duração do último processo em segundos.")
 
 class FileSystemItem(BaseModel):
     name: str = Field(..., description="Nome do arquivo ou diretório.")
@@ -54,7 +77,7 @@ class WorkflowConfig(BaseModel):
 
 
 
-# --- WebSocket para Monitoramento de Progresso ---
+#  WebSocket para Monitoramento de Progresso 
 class ProgressConnectionManager:
     """Gerencia as conexões de WebSocket por projeto."""
     def __init__(self):
@@ -77,19 +100,16 @@ class ProgressConnectionManager:
     async def broadcast(self, project_name: str, message: dict):
         """Envia uma mensagem JSON para todos os clientes de um projeto."""
         if project_name in self.active_connections:
-            # Itera sobre uma cópia para evitar problemas ao remover itens durante a iteração
             for connection in self.active_connections[project_name][:]:
                 try:
                     await connection.send_json(message)
                 except Exception:
-                    # Remove a conexão se houver erro ao enviar
                     self.active_connections[project_name].remove(connection)
 
 manager = ProgressConnectionManager()
 active_watchers: Dict[str, asyncio.Task] = {}
 running_workflows: Dict[str, asyncio.subprocess.Process] = {}
 
-# --- Funções Auxiliares para o Workflow ---
 
 def parse_log_line(line: str) -> dict:
     """Analisa uma linha de log e a converte em um dicionário estruturado."""
@@ -157,6 +177,8 @@ async def stream_workflow_output(project_name: str, process: asyncio.subprocess.
             pass
 
     return_code = await process.wait()
+    
+
     print(f"Workflow do projeto {project_name} concluído com código de saída: {return_code}")
 
     final_message = {
@@ -175,20 +197,32 @@ async def stream_workflow_output(project_name: str, process: asyncio.subprocess.
         del running_workflows[project_name]
 
 
-# --- Endpoints HTTP ---
 
 @app.post("/projects/{project_name}/run", status_code=202)
 async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
     """
-    Inicia a execução do workflow para um projeto específico.
+    Inicia a execução do workflow de análise para um projeto específico.
+
+    Args:
+        project_name (str): Nome do projeto já existente na pasta de projetos.
+        workflow_config (WorkflowConfig): Configurações do workflow enviadas pelo frontend. 
+            O dicionário deve conter os parâmetros de entrada, saída e ajustes necessários.
+
+    Returns:
+        dict: Mensagem confirmando a execução do workflow.
+
+    Raises:
+        HTTPException 404: Se o projeto não for encontrado.
+        HTTPException 409: Se já houver um workflow em execução para o mesmo projeto.
+        HTTPException 500: Se ocorrer falha ao iniciar o processo.
     """
     project_path = os.path.abspath(os.path.join(PROJECTS_ROOT, project_name))
     print(project_path)
-    # if not project_path.startswith(PROJECTS_ROOT) or not os.path.isdir(project_path):
-    #     raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    if not project_path.startswith(PROJECTS_ROOT) or not os.path.isdir(project_path):
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
 
-    # if project_name in running_workflows:
-        # raise HTTPException(status_code=409, detail=f"O workflow para o projeto '{project_name}' já está em execução.")
+    if project_name in running_workflows:
+        raise HTTPException(status_code=409, detail=f"O workflow para o projeto '{project_name}' já está em execução.")
 
     config_dict = workflow_config.configs
     data_input_folder = config_dict['tree_config']['input_path']
@@ -212,7 +246,8 @@ async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
     ]
 
     print(f"Executando comando para o projeto '{project_name}': {' '.join(command)}")
-
+    
+    
     try:
         process = await asyncio.create_subprocess_exec(
             *command,
@@ -230,25 +265,76 @@ async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
         raise HTTPException(status_code=500, detail=f"Falha ao iniciar o workflow: {e}")
 
 
+
 @app.get("/projects", response_model=List[Project])
 async def get_projects():
     """
-    Retorna uma lista de todos os projetos disponíveis, ordenados por nome.
+    Lista todos os projetos disponíveis no sistema.
+
+    Returns:
+        List[Project]: Lista de projetos, incluindo:
+            - **name**: Nome do projeto
+            - **last_modified**: Data da última modificação do diretório
+            - **duration**: Duração do último processo (em segundos), se disponível
+
+    Observação:
+        A duração é calculada a partir dos arquivos de log, caso existam.
     """
     projects = []
+    now = datetime.datetime.now()
+    today = now.date()
+    timestamp_regex = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3})")
+
     for project_name in sorted(os.listdir(PROJECTS_ROOT)):
         full_path = os.path.join(PROJECTS_ROOT, project_name)
-        if os.path.isdir(full_path):
-            projects.append(Project(
-                name=project_name,
-                last_modified=datetime.datetime.fromtimestamp(os.path.getmtime(full_path))
-            ))
+        if not os.path.isdir(full_path):
+            continue
+
+        duration_seconds = None
+        log_dir = os.path.join(PROJECTS_ROOT, project_name, "out/outputs")
+
+        log_files = glob.glob(os.path.join(log_dir, "*.log"))
+        if log_files:
+            latest_log = max(log_files, key=os.path.getmtime)
+            
+            try:
+                with open(latest_log, 'r', encoding='utf-8', errors='ignore') as f:
+                    lines = [line for line in f if line.strip()] # Lê apenas linhas não vazias
+                
+                if lines:
+                    first_match = timestamp_regex.match(lines[0])
+                    if first_match:
+                        first_line_time = datetime.datetime.strptime(first_match.group(1), "%Y-%m-%d %H:%M:%S,%f")
+                        
+                        if project_name in running_workflows and first_line_time.date() == today:
+                            # Processo rodando: calcula segundos decorridos
+                            duration_seconds = int((now - first_line_time).total_seconds())
+                        else:
+                            # Processo terminado: calcula segundos totais
+                            last_match = timestamp_regex.match(lines[-1])
+                            if last_match:
+                                last_line_time = datetime.datetime.strptime(last_match.group(1), "%Y-%m-%d %H:%M:%S,%f")
+                                duration_seconds = int((last_line_time - first_line_time).total_seconds())
+            except Exception:
+                duration_seconds = None # Em caso de erro de leitura, retorna None
+
+        projects.append(Project(
+            name=project_name,
+            last_modified=datetime.datetime.fromtimestamp(os.path.getmtime(full_path)),
+            duration=duration_seconds
+        ))
+            
     return projects
 
 @app.get("/dataFolders", response_model=List[Project])
 async def get_data_folders():
     """
-    Retorna uma lista de todos os diretorios de dados disponíveis, ordenados por nome.
+    Lista os diretórios de dados disponíveis.
+
+    Returns:
+        List[Project]: Diretórios de dados, com:
+            - **name**: Nome da pasta
+            - **last_modified**: Data da última modificação
     """
     data_folders = []
     for data_folder in sorted(os.listdir(DATA_ROOT)):
@@ -264,8 +350,22 @@ async def get_data_folders():
 @app.get("/browse", response_model=List[FileSystemItem])
 async def browse_path(path: str = Query("", description="O caminho relativo a ser explorado. Ex: 'meu_projeto/Trees'")):
     """
-    Lista o conteúdo de um diretório específico dentro da pasta de projetos.
-    Por segurança, impede o acesso a diretórios fora da pasta 'PROJECTS_ROOT'.
+    Explora o conteúdo de um diretório dentro da pasta de projetos.
+
+    Args:
+        path (str): Caminho relativo ao `PROJECTS_ROOT`.
+
+    Returns:
+        List[FileSystemItem]: Lista de itens encontrados, incluindo:
+            - **name**: Nome do arquivo ou pasta
+            - **path**: Caminho relativo ao projeto
+            - **type**: "file" ou "directory"
+            - **size**: Tamanho em bytes
+            - **last_modified**: Data da última modificação
+
+    Raises:
+        HTTPException 403: Tentativa de acessar diretórios fora de `PROJECTS_ROOT`.
+        HTTPException 404: Caminho inexistente ou não é diretório.
     """
     requested_path = os.path.abspath(os.path.join(PROJECTS_ROOT, path))
 
@@ -294,8 +394,7 @@ async def browse_path(path: str = Query("", description="O caminho relativo a se
 @app.get("/inputs_data", response_model=List[FileSystemItem])
 async def inputs_data_path(path: str = Query("", description="O caminho relativo a ser explorado. Ex: 'meu_projeto/Trees'")):
     """
-    Lista o conteúdo de um diretório específico dentro da pasta de projetos.
-    Por segurança, impede o acesso a diretórios fora da pasta 'PROJECTS_ROOT'.
+    
     """
     requested_path = os.path.abspath(os.path.join(PATH_BASE_WORKFLOW, 'data'))
 
@@ -321,8 +420,23 @@ async def inputs_data_path(path: str = Query("", description="O caminho relativo
 @app.get("/file")
 async def get_file_content(path: str = Query(..., description="Caminho relativo do arquivo.")):
     """
-    Retorna o conteúdo de um arquivo. Para imagens, retorna o arquivo diretamente.
-    Para texto, retorna o conteúdo como JSON.
+    Retorna o conteúdo de um arquivo para pré-visualização no frontend.
+
+    Args:
+        path (str): Caminho relativo ao arquivo.
+
+    Returns:
+        dict: Conteúdo do arquivo em texto, incluindo:
+            - **content**: Conteúdo em string
+            - **type**: Tipo interpretado (newick, fasta, clustal, table, text, json)
+
+        FileResponse: Caso o arquivo seja uma imagem.
+
+    Raises:
+        HTTPException 403: Acesso negado (fora de PROJECTS_ROOT).
+        HTTPException 404: Arquivo não encontrado.
+        HTTPException 415: Tipo de arquivo não suportado.
+        HTTPException 500: Erro ao abrir ou processar arquivo.
     """
     full_path = os.path.abspath(os.path.join(PROJECTS_ROOT, path))
     if not full_path.startswith(PROJECTS_ROOT):
@@ -330,18 +444,35 @@ async def get_file_content(path: str = Query(..., description="Caminho relativo 
     if not os.path.isfile(full_path):
         raise HTTPException(status_code=404, detail="Arquivo não encontrado.")
 
-    mime_type, _ = mimetypes.guess_type(full_path)
-    if mime_type and mime_type.startswith("image/"):
-        return FileResponse(full_path)
-    
-    text_extensions = [".txt", ".log", ".cql", ".nexus", ".md", ".json"]
-    if any(full_path.endswith(ext) for ext in text_extensions):
-        try:
-            with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-            return {"content": content, "type": "text"}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Erro ao ler arquivo: {e}")
+    file_type = "unsupported"
+    content = ""
+
+    try:
+        with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+
+        if any(full_path.endswith(ext) for ext in [".newick", ".nwk", ".tree",".nexus"]):
+            file_type = "newick"
+        elif any(full_path.endswith(ext) for ext in [".fasta", ".fa", ".fas", ".faa"]):
+            file_type = "fasta"
+        elif any(full_path.endswith(ext) for ext in [".aln", ".clustal"]):
+            file_type = "clustal"
+        elif any(full_path.endswith(ext) for ext in [".csv", ".tsv"]):
+            file_type = "table"
+        elif any(full_path.endswith(ext) for ext in [".log", ".txt", ".cql"]):
+            file_type = "text"
+        elif full_path.endswith(".json"):
+            file_type = "json"
+        
+        mime_type, _ = mimetypes.guess_type(full_path)
+        if mime_type and mime_type.startswith("image/"):
+            return FileResponse(full_path)
+        
+        if file_type != "unsupported":
+             return {"content": content, "type": file_type}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao ler arquivo: {e}")
 
     raise HTTPException(status_code=415, detail="Tipo de arquivo não suportado para pré-visualização.")
 
@@ -351,7 +482,16 @@ async def read_root():
 
 @app.get("/projects/status")
 async def get_projects_status():
-    """Retorna o status de todos os projetos."""
+    """
+    Consulta o status atual de todos os projetos.
+
+    Returns:
+        dict: Dicionário com `{project_name: status}`, onde status pode ser:
+            - **running**: Workflow em execução
+            - **completed**: Workflow concluído
+            - **failed**: Erro durante execução
+            - **idle**: Nenhum processo em andamento
+    """
     statuses = {}
     for project_name in os.listdir(PROJECTS_ROOT):
         project_path = os.path.join(PROJECTS_ROOT, project_name)
@@ -384,8 +524,15 @@ async def get_projects_status():
 @app.post("/projects/details", response_model=Dict[str, ProjectDetails])
 async def get_projects_details(project_names: List[str]):
     """
-    Para uma lista de projetos, lê o último log de cada um e extrai
-    informações como o arquivo de input e a última etapa registrada.
+    Obtém detalhes dos projetos especificados.
+
+    Args:
+        project_names (List[str]): Lista com os nomes dos projetos.
+
+    Returns:
+        Dict[str, ProjectDetails]: Detalhes de cada projeto:
+            - **input_file**: Arquivo de entrada identificado no log
+            - **current_step**: Última etapa registrada no log
     """
     details = {}
     for project_name in project_names:
@@ -428,7 +575,7 @@ async def get_projects_details(project_names: List[str]):
         
     return details
 
-# --- WebSocket Endpoints ---
+#  WebSocket Endpoints 
 
 async def log_watcher(project_name: str):
     """Observa um arquivo de log e transmite novas linhas via WebSocket. (Para logs antigos)"""
@@ -438,7 +585,6 @@ async def log_watcher(project_name: str):
     outputs_dir = os.path.join(project_path, "out", "outputs")
     log_path = None
     
-    # Procura pelo log mais recente
     retries = 10
     while retries > 0:
         if os.path.isdir(outputs_dir):
@@ -456,19 +602,16 @@ async def log_watcher(project_name: str):
     try:
         with open(log_path, "r", encoding='utf-8', errors='ignore') as f:
             print(f"Lendo histórico do log: {log_path}")
-            # Envia todo o conteúdo histórico do log de uma vez
             for line in f:
                 parsed_line = parse_log_line(line)
                 await manager.broadcast(project_name, {
                     "type": "progress_update",
                     "payload": parsed_line
                 })
-            # Informa que o histórico foi enviado
             await manager.broadcast(project_name, {
                 "type": "history_complete",
                 "message": f"Histórico do log do projeto {project_name} carregado."
             })
-            # O watcher para de observar ativamente, pois o streaming ao vivo é feito por outra função
     except Exception as e:
         await manager.broadcast(project_name, {"type": "error", "message": f"Erro no observador de log: {e}"})
     finally:
@@ -478,9 +621,18 @@ async def log_watcher(project_name: str):
 
 @app.websocket("/ws/progress/{project_name}")
 async def websocket_progress_endpoint(websocket: WebSocket, project_name: str):
+    """
+    WebSocket para monitorar em tempo real o progresso de execução de um workflow.
+
+    - Conecta clientes ao projeto especificado.
+    - Envia logs e atualizações de progresso.
+    - Permite acompanhar execução mesmo após início.
+
+    Args:
+        project_name (str): Nome do projeto.
+    """
     await manager.connect(project_name, websocket)
     
-    # Se um workflow NÃO estiver rodando, inicia o log_watcher para ver o histórico.
     if project_name not in running_workflows and project_name not in active_watchers:
         task = asyncio.create_task(log_watcher(project_name))
         active_watchers[project_name] = task
@@ -492,7 +644,6 @@ async def websocket_progress_endpoint(websocket: WebSocket, project_name: str):
         manager.disconnect(project_name, websocket)
 
 
-# --- Performance Watcher (código original mantido) ---
 performance_clients: List[WebSocket] = []
 performance_watcher_task: asyncio.Task = None
 
@@ -526,6 +677,14 @@ async def performance_watcher():
 
 @app.websocket("/ws/system-performance")
 async def websocket_performance_endpoint(websocket: WebSocket):
+    """
+    WebSocket para monitoramento de métricas do sistema em tempo real.
+
+    Retorna periodicamente:
+        - **cpu**: Uso de CPU em porcentagem
+        - **memory**: Uso de memória RAM em porcentagem
+        - **disk**: Uso de disco em porcentagem
+    """
     global performance_watcher_task
     await websocket.accept()
     performance_clients.append(websocket)

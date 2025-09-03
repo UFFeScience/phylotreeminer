@@ -7,20 +7,22 @@ import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import { ReadOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom';
 
-import bg from '../../assets/bg.png'
+import bg from '../../assets/bg3.png'
 
 
-import GitHubIcon from '@mui/icons-material/GitHub';
 
 const Hero = () => {
     const navigate = useNavigate();
 
     const handleStartWorking = () => {
-        navigate('/Dashboards');
+        navigate('/projects');
     };
 
+    
     return (
         <Box
             id="hero"
@@ -81,8 +83,9 @@ const Hero = () => {
                             Start working
                         </Button>
                         <Button variant="outlined" color="primary" href='https://github.com/UFFeScience/NMFSt.P' target="_blank" startIcon={<GitHubIcon/>}>
-                            Documentation
+                            Github
                         </Button>
+                        
                     </Stack>
                 </Stack>
                 <Box

@@ -45,14 +45,16 @@ import Logo from './logo';
 const navLinks = [
     { label: 'Highlights', href: '#highlights' },
     { label: 'About Us', href: '#sobre' },
-    { label: 'FAQ', href: '#faq' },
+    // { label: 'FAQ', href: '#faq' },
+    { label: 'Documentation', href: '/doc' },
 ];
+
 
 const AppAppBar = ({ mode, toggleColorMode }) => {
     const navigate = useNavigate();
 
     const handleStartWorking = () => {
-        navigate('/Dashboards');
+        navigate('/projects');
     };
 
     return (
@@ -107,7 +109,7 @@ const AppAppBar = ({ mode, toggleColorMode }) => {
                         ))}
                     </Box>
                     <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 3, alignItems: 'center' }}>
-                        <Tooltip title="Projeto no GitHub">
+                        <Tooltip title="GitHub Project">
                             <IconButton
                                 color="primary"
                                 href="https://github.com/"

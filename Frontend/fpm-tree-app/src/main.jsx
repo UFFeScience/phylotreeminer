@@ -8,6 +8,8 @@ import PipelineConfigurator from './components/configures/pipelineConfigurator.j
 import SystemPerformanceMonitor from './components/displayData/systemPerformancerMonitor.jsx';
 import TestPage from './pages/testPage.jsx';
 import HomePage from './pages/homePage.jsx';
+import AnalysisPage from './pages/AnalysisPage.jsx';
+import DocumentationHome from './pages/DocumentationHome.jsx';
 
 const NotFoundPage = () => (
   <Result
@@ -37,16 +39,16 @@ const router = createBrowserRouter([
         element: <ProjectPage/>
       },
       {
-        path: 'pipelines',
+        path: 'workflow',
         element: <PipelineConfigurator/>
       },
       {
-        path: 'scripts',
-        element: <SystemPerformanceMonitor/>
+        path: 'analysis',
+        element: <AnalysisPage/>
       },
       {
-        path: 'settings',
-        element: <NotFoundPage />, 
+        path: 'doc',
+        element: <DocumentationHome/>, 
       },
     ]
   }

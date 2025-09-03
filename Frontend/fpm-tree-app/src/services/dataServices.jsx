@@ -34,3 +34,31 @@ export const fetchProjects = () => {
 export const fetchInputData = () => {
   return fetchFromAPI('inputs_data');
 };
+
+export const fetchNcbiInfo = async (identifier) => {
+  const response = await fetch(`${API_BASE_URL}/api/ncbi/info`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ identifier }),
+  });
+  if (!response.ok) {
+    throw new Error('Falha ao buscar dados do NCBI');
+  }
+  return response.json();
+};
+
+export const executeGraphQuery = async (query) => {
+    const response = await fetch(`${API_BASE_URL}/api/neo4j/graph`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+    });
+    if (!response.ok) {
+        throw new Error('Falha ao executar consulta no grafo');
+    }
+    return response.json();
+}

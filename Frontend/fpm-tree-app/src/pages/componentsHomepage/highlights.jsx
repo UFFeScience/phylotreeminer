@@ -1,44 +1,16 @@
-import * as React from 'react';
-
-import {
-    ThemeProvider,
-    createTheme,
-    alpha
-} from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
-import Divider from '@mui/material/Divider';
-import AppBar from '@mui/material/AppBar';
 import Container from '@mui/material/Container';
-import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import Stack from '@mui/material/Stack';
 import Grid from '@mui/material/Grid';
-import Card from '@mui/material/Card';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import TextField from '@mui/material/TextField';
-import { useNavigate } from 'react-router-dom';
 
-import {
-
-    Link,
-
-} from '@mui/material';
-
-// Ícones
-import GitHubIcon from '@mui/icons-material/GitHub';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import AlignHorizontalLeftIcon from '@mui/icons-material/AlignHorizontalLeft';
+import FileOpenIcon from '@mui/icons-material/FileOpen';
 import ScienceIcon from '@mui/icons-material/Science';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import AnalyticsIcon from '@mui/icons-material/Analytics';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import DataObjectIcon from '@mui/icons-material/DataObject';
+
 
 const Highlights = () => (
     <Box
@@ -64,7 +36,7 @@ const Highlights = () => (
                     Workflow Highlights
                 </Typography>
                 <Typography variant="body1" sx={{ color: 'grey.500' }}>
-                    Explore the key features that make PhyloTreeMiner the ideal tool for your analyses, from beginners to experts.
+                    Explore the key features that make PhyloTreeMiner the ideal tool for your analyses.
                 </Typography>
             </Box>
             <Grid container rowSpacing={{ xs: 1, sm: 2, md: 3 }} columnSpacing={{ xs: 1, sm: 2, md: 3 }}>
@@ -75,19 +47,19 @@ const Highlights = () => (
                         spacing={1}
                         useFlexGap
                         sx={{ p: 4, height: '100%', border: '1px solid #E4E4E4FF', borderRadius: 2 }}
+                    >
+                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
+                        <div>
+                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
+                                Visual Insights with Neo4j
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
+                                Graph-based visualization powered by Neo4j reveals hidden biological relationships between taxa, enabling the discovery of complex evolutionary patterns that are difficult to capture in tabular views.
+                            </Typography>
+                        </div>
+                    </Stack>
+                </Grid>
 
-                    >
-                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
-                        <div>
-                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
-                                Visual Insights with Neo4j
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
-                                Integration with Neo4j facilitates graph visualization, revealing deep biological insights.
-                            </Typography>
-                        </div>
-                    </Stack>
-                </Grid>
                 <Grid item size={{ xs: 2, sm: 4, md: 4 }}>
                     <Stack
                         direction="column"
@@ -95,19 +67,19 @@ const Highlights = () => (
                         spacing={1}
                         useFlexGap
                         sx={{ p: 4, height: '100%', border: '1px solid #E4E4E4FF', borderRadius: 2 }}
+                    >
+                        <Box sx={{ color: 'grey.800' }}><AlignHorizontalLeftIcon /></Box>
+                        <div>
+                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
+                                Alignment Viewer
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
+                                An advanced visualization tool for multiple sequence alignments, highlighting conservation patterns, gap distributions, and regions of biological significance to support comparative and evolutionary analysis.
+                            </Typography>
+                        </div>
+                    </Stack>
+                </Grid>
 
-                    >
-                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
-                        <div>
-                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
-                                Visual Insights with Neo4j
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
-                                Integration with Neo4j facilitates graph visualization, revealing deep biological insights.
-                            </Typography>
-                        </div>
-                    </Stack>
-                </Grid>
                 <Grid item size={{ xs: 2, sm: 4, md: 4 }}>
                     <Stack
                         direction="column"
@@ -115,19 +87,19 @@ const Highlights = () => (
                         spacing={1}
                         useFlexGap
                         sx={{ p: 4, height: '100%', border: '1px solid #E4E4E4FF', borderRadius: 2 }}
+                    >
+                        <Box sx={{ color: 'grey.800' }}><FileOpenIcon /></Box>
+                        <div>
+                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
+                                Multi-format Support
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
+                                Seamlessly handles common bioinformatics standards such as phylogenetic trees (.nexus, .newick) and sequence alignments (.fasta, .clustal), ensuring smooth integration into existing research workflows.
+                            </Typography>
+                        </div>
+                    </Stack>
+                </Grid>
 
-                    >
-                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
-                        <div>
-                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
-                                Visual Insights with Neo4j
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
-                                Integration with Neo4j facilitates graph visualization, revealing deep biological insights.
-                            </Typography>
-                        </div>
-                    </Stack>
-                </Grid>
                 <Grid item size={{ xs: 2, sm: 4, md: 4 }}>
                     <Stack
                         direction="column"
@@ -135,19 +107,19 @@ const Highlights = () => (
                         spacing={1}
                         useFlexGap
                         sx={{ p: 4, height: '100%', border: '1px solid #E4E4E4FF', borderRadius: 2 }}
+                    >
+                        <Box sx={{ color: 'grey.800' }}><ScienceIcon /></Box>
+                        <div>
+                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
+                                Data Enrichment with NCBI
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
+                                Real-time integration with NCBI databases enhances analyses with taxonomic metadata and links to relevant publications, providing deeper biological context to sequence-based studies.
+                            </Typography>
+                        </div>
+                    </Stack>
+                </Grid>
 
-                    >
-                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
-                        <div>
-                            <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
-                                Visual Insights with Neo4j
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
-                                Integration with Neo4j facilitates graph visualization, revealing deep biological insights.
-                            </Typography>
-                        </div>
-                    </Stack>
-                </Grid>
                 <Grid item size={{ xs: 2, sm: 4, md: 4 }}>
                     <Stack
                         direction="column"
@@ -156,17 +128,18 @@ const Highlights = () => (
                         useFlexGap
                         sx={{ p: 4, height: '100%', border: '1px solid #E4E4E4FF', borderRadius: 2 }}
                     >
-                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
+                        <Box sx={{ color: 'grey.800' }}><AccountTreeIcon /></Box>
                         <div>
                             <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
-                                Visual Insights with Neo4j
+                                Interactive Tree Exploration
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
-                                Integration with Neo4j facilitates graph visualization, revealing deep biological insights.
+                                Phylogenetic trees that allow intuitive exploration of evolutionary relationships, with interactive node selection to investigate clades, divergences, and lineage-specific patterns.
                             </Typography>
                         </div>
                     </Stack>
                 </Grid>
+
                 <Grid item size={{ xs: 2, sm: 4, md: 4 }}>
                     <Stack
                         direction="column"
@@ -175,13 +148,13 @@ const Highlights = () => (
                         useFlexGap
                         sx={{ p: 4, height: '100%', border: '1px solid #E4E4E4FF', borderRadius: 2 }}
                     >
-                        <Box sx={{ color: 'grey.800' }}><AnalyticsIcon /></Box>
+                        <Box sx={{ color: 'grey.800' }}><DataObjectIcon /></Box>
                         <div>
                             <Typography fontWeight="bold" gutterBottom sx={{ color: 'grey.800' }}>
-                                Visual Insights with Neo4j
+                                Containerized Workflow with Docker
                             </Typography>
                             <Typography variant="body2" sx={{ color: 'grey.800' }} align="justify">
-                                Integration with Neo4j facilitates graph visualization, revealing deep biological insights.
+                                Delivered in a reproducible Docker environment, ensuring consistent analyses, facilitating collaboration, and supporting long-term scientific reproducibility across different systems.
                             </Typography>
                         </div>
                     </Stack>
