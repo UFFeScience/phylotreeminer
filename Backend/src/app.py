@@ -1,11 +1,17 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
-from typing import List, Dict, Literal, Optional, Any
+from typing import List, Dict, Literal, Optional, Any, Tuple
 import os, datetime, mimetypes, asyncio, re, psutil, json
-import glob
+import glob, tempfile
+
+from Bio import Phylo
+from io import StringIO
+import numpy as np
+from dendropy import Tree, TreeList, TaxonNamespace
+from dendropy.calculate import treecompare
 
 from src.routers import neo4j_router, ncbi_router
 from src.services.neo4j_services import neo4j_service
@@ -265,7 +271,6 @@ async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
         raise HTTPException(status_code=500, detail=f"Falha ao iniciar o workflow: {e}")
 
 
-
 @app.get("/projects", response_model=List[Project])
 async def get_projects():
     """
@@ -325,6 +330,26 @@ async def get_projects():
         ))
             
     return projects
+
+@app.get("/api/tree/metadata/{project_name}", status_code=202)
+async def get_tree_metadata(project_name: str):
+    """
+    Obtém metadados para os nós de uma árvore filogenética.
+    """
+    project_path = os.path.join(PROJECTS_ROOT, project_name)
+    metadata_path = os.path.join(project_path,'out','outputs',"metadata.json")
+    
+    if not os.path.exists(metadata_path):
+        raise HTTPException(status_code=404, detail="Arquivo de metadados não encontrado")
+    
+    try:
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+        
+        return metadata
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao ler metadados: {e}")
 
 @app.get("/dataFolders", response_model=List[Project])
 async def get_data_folders():
@@ -476,9 +501,13 @@ async def get_file_content(path: str = Query(..., description="Caminho relativo 
 
     raise HTTPException(status_code=415, detail="Tipo de arquivo não suportado para pré-visualização.")
 
-@app.get("/")
-async def read_root():
-    return {"message": "Bem-vindo à API FastAPI!"}
+# @app.get("/")
+# async def read_root():
+#     return {"message": "Bem-vindo à API FastAPI!"}
+
+@app.head("/")
+def read_root_head():
+    return Response(content="Bem-vindo à API FastAPI!",status_code=200)
 
 @app.get("/projects/status")
 async def get_projects_status():
@@ -575,6 +604,311 @@ async def get_projects_details(project_names: List[str]):
         
     return details
 
+def extract_trees_from_nexus(nexus_content: str, taxon_namespace: TaxonNamespace = None) -> List[Tree]:
+    """
+    Extrai árvores do conteúdo Nexus usando um taxon namespace compartilhado
+    """
+    try:
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.nexus', delete=False) as temp_file:
+            temp_file.write(nexus_content)
+            temp_file.flush()
+            
+            if taxon_namespace:
+                trees = TreeList.get_from_path(
+                    temp_file.name, 
+                    'nexus', 
+                    taxon_namespace=taxon_namespace,
+                    rooting='force-unrooted'
+                )
+            else:
+                trees = TreeList.get_from_path(
+                    temp_file.name, 
+                    'nexus', 
+                    rooting='force-unrooted'
+                )
+            
+        return trees
+        
+    except Exception as e:
+        raise ValueError(f"Failed to parse Nexus content: {str(e)}")
+    finally:
+        try:
+            import os
+            os.unlink(temp_file.name)
+        except:
+            pass
+
+def align_taxon_namespaces(tree1: Tree, tree2: Tree) -> Tuple[Tree, Tree]:
+    """
+    Alinha os taxon namespaces das duas árvores
+    """
+    unified_namespace = TaxonNamespace()
+    
+    all_taxa = set()
+    for tree in [tree1, tree2]:
+        for taxon in tree.taxon_namespace:
+            all_taxa.add(taxon.label)
+    
+    for taxon_label in sorted(all_taxa):
+        unified_namespace.new_taxon(label=taxon_label)
+    
+    tree1_aligned = Tree.get_from_string(
+        tree1.as_string('newick'),
+        'newick',
+        taxon_namespace=unified_namespace,
+        rooting='force-unrooted'
+    )
+    
+    tree2_aligned = Tree.get_from_string(
+        tree2.as_string('newick'),
+        'newick',
+        taxon_namespace=unified_namespace,
+        rooting='force-unrooted'
+    )
+    
+    return tree1_aligned, tree2_aligned
+
+def calculate_rf_distance(tree1: Tree, tree2: Tree) -> int:
+    """
+    Calcula a distância Robinson-Foulds
+    """
+    return treecompare.symmetric_difference(tree1, tree2)
+
+def calculate_quartet_distance(tree1: Tree, tree2: Tree) -> int:
+    """
+    Calcula a distância Quartet entre duas árvores
+    """
+    try:
+        return treecompare.quartet_distance(tree1, tree2)
+    except Exception as e:
+        print(f"Quartet distance calculation failed: {e}")
+        return approximate_quartet_distance(tree1, tree2)
+
+def approximate_quartet_distance(tree1: Tree, tree2: Tree) -> int:
+    """
+    Calcula uma aproximação da distância Quartet
+    """
+    taxa = sorted([taxon.label for taxon in tree1.taxon_namespace])
+    if len(taxa) < 4:
+        return 0
+    
+    quartet_distance = 0
+    sample_size = min(500, len(taxa) * 10)  
+    
+    for _ in range(sample_size):
+        try:
+            sampled_taxa = np.random.choice(taxa, 4, replace=False)
+            quartet_taxa = set(sampled_taxa)
+            
+            quartet1 = tree1.quartet(*quartet_taxa)
+            quartet2 = tree2.quartet(*quartet_taxa)
+            
+            if quartet1 != quartet2:
+                quartet_distance += 1
+                
+        except Exception:
+            quartet_distance += 1
+    
+    total_quartets = len(taxa) * (len(taxa)-1) * (len(taxa)-2) * (len(taxa)-3) // 24
+    if total_quartets > 0 and sample_size > 0:
+        return int((quartet_distance / sample_size) * total_quartets)
+    return 0
+
+def find_common_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
+    """
+    Encontra clados comuns entre duas árvores
+    """
+    common_clades = 0
+    common_clade_descriptions = []
+    
+    tree1.encode_bipartitions()
+    tree2.encode_bipartitions()
+    
+    bipartitions1 = set()
+    bipartitions2 = set()
+    
+    for edge in tree1.postorder_edge_iter():
+        if edge.bipartition and not edge.bipartition.is_trivial():
+            bipartition_str = edge.bipartition.split_bitmask
+            bipartitions1.add(bipartition_str)
+    
+    for edge in tree2.postorder_edge_iter():
+        if edge.bipartition and not edge.bipartition.is_trivial():
+            bipartition_str = edge.bipartition.split_bitmask
+            bipartitions2.add(bipartition_str)
+    
+    common_bipartitions = bipartitions1.intersection(bipartitions2)
+    common_clades = len(common_bipartitions)
+    
+    return common_clades, common_clade_descriptions
+
+def find_conflicting_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
+    """
+    Encontra clados conflitantes entre duas árvores
+    """
+    conflicting_clades = 0
+    
+    tree1.encode_bipartitions()
+    tree2.encode_bipartitions()
+    
+    # Obter todas as bipartições não triviais
+    bipartitions1 = set()
+    bipartitions2 = set()
+    
+    for edge in tree1.postorder_edge_iter():
+        if edge.bipartition and not edge.bipartition.is_trivial():
+            bipartitions1.add(edge.bipartition.split_bitmask)
+    
+    for edge in tree2.postorder_edge_iter():
+        if edge.bipartition and not edge.bipartition.is_trivial():
+            bipartitions2.add(edge.bipartition.split_bitmask)
+    
+    # Clados conflitantes, presentes em uma árvore mas não na outra
+    conflicting_clades = len(bipartitions1.symmetric_difference(bipartitions2))
+    
+    return conflicting_clades, []
+
+def get_tree_statistics(tree: Tree) -> Dict:
+    """
+    Obtém estatísticas detalhadas de uma árvore
+    """
+    nodes = 0
+    leaves = 0
+    internal_nodes = 0
+    
+    for node in tree:
+        nodes += 1
+        if node.is_leaf():
+            leaves += 1
+        else:
+            internal_nodes += 1
+    
+    branch_lengths = []
+    for edge in tree.postorder_edge_iter():
+        if edge.length is not None:
+            branch_lengths.append(edge.length)
+    
+    avg_branch_length = sum(branch_lengths) / len(branch_lengths) if branch_lengths else 0
+    
+    return {
+        'total_nodes': nodes,
+        'leaf_nodes': leaves,
+        'internal_nodes': internal_nodes,
+        'avg_branch_length': round(avg_branch_length, 6),
+        'tree_length': round(tree.length(), 6)
+    }
+
+@app.post("/api/tree/compare")
+async def compare_trees(tree_data: dict):
+    """
+    Compara duas árvores filogenéticas no formato Nexus
+    """
+    try:
+        tree1_nexus = tree_data.get('tree1')
+        tree2_nexus = tree_data.get('tree2')
+        
+        if not tree1_nexus or not tree2_nexus:
+            raise HTTPException(status_code=400, detail="Both tree1 and tree2 content are required")
+        
+        # Extrair a primeira árvore para obter o taxon namespace
+        trees1 = extract_trees_from_nexus(tree1_nexus)
+        if len(trees1) == 0:
+            raise HTTPException(status_code=400, detail="No trees found in tree1 Nexus content")
+        
+        # Usar o taxon namespace da primeira árvore para a segunda
+        taxon_namespace = trees1[0].taxon_namespace
+        
+        # Extrair a segunda árvore com o mesmo taxon namespace
+        trees2 = extract_trees_from_nexus(tree2_nexus, taxon_namespace)
+        if len(trees2) == 0:
+            raise HTTPException(status_code=400, detail="No trees found in tree2 Nexus content")
+        
+        tree1 = trees1[0]
+        tree2 = trees2[0]
+        
+        tree1.is_rooted = False
+        tree2.is_rooted = False
+        
+        if tree1.taxon_namespace is not tree2.taxon_namespace:
+            tree1, tree2 = align_taxon_namespaces(tree1, tree2)
+        
+        rf_distance = calculate_rf_distance(tree1, tree2)
+        quartet_distance = calculate_quartet_distance(tree1, tree2)
+        common_clades, common_clade_descriptions = find_common_clades(tree1, tree2)
+        conflicting_clades, conflicting_descriptions = find_conflicting_clades(tree1, tree2)
+        
+        tree1_stats = get_tree_statistics(tree1)
+        tree2_stats = get_tree_statistics(tree2)
+        
+        total_possible_clades = max((tree1_stats['leaf_nodes'] - 3), 1)
+        similarity_score = (common_clades / total_possible_clades) * 100 if total_possible_clades > 0 else 0
+        
+        return {
+            'rf_distance': rf_distance,
+            'quartet_distance': quartet_distance,
+            'common_clades': common_clades,
+            'conflicting_clades': conflicting_clades,
+            'similarity_score': round(similarity_score, 2),
+            'tree1_stats': tree1_stats,
+            'tree2_stats': tree2_stats,
+            'taxon_count': len(tree1.taxon_namespace),
+            'comparison_notes': {
+                'rf_interpretation': interpret_rf_distance(rf_distance, tree1_stats['leaf_nodes']),
+                'quartet_interpretation': interpret_quartet_distance(quartet_distance, tree1_stats['leaf_nodes']),
+                'similarity_interpretation': interpret_similarity(similarity_score)
+            }
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error comparing trees: {str(e)}")
+
+def interpret_rf_distance(rf_distance: int, num_taxa: int) -> str:
+    """Interpreta a distância RF"""
+    max_rf = 2 * (num_taxa - 3) if num_taxa > 3 else 0
+    if max_rf == 0:
+        return "Árvores idênticas ou muito pequenas para comparação RF"
+    
+    normalized_rf = rf_distance / max_rf
+    if normalized_rf < 0.1:
+        return "Árvores muito similares"
+    elif normalized_rf < 0.3:
+        return "Árvores similares com pequenas diferenças"
+    elif normalized_rf < 0.6:
+        return "Árvores moderadamente diferentes"
+    else:
+        return "Árvores muito diferentes"
+
+def interpret_quartet_distance(qd: int, num_taxa: int) -> str:
+    """Interpreta a distância Quartet"""
+    max_qd = num_taxa * (num_taxa-1) * (num_taxa-2) * (num_taxa-3) // 24 if num_taxa >= 4 else 0
+    if max_qd == 0:
+        return "Não aplicável (menos de 4 táxons)"
+    
+    normalized_qd = qd / max_qd
+    if normalized_qd < 0.1:
+        return "Baixa discordância de quartetos"
+    elif normalized_qd < 0.3:
+        return "Discordância moderada de quartetos"
+    elif normalized_qd < 0.6:
+        return "Alta discordância de quartetos"
+    else:
+        return "Discordância muito alta de quartetos"
+
+def interpret_similarity(similarity: float) -> str:
+    """Interpreta o score de similaridade"""
+    if similarity > 90:
+        return "Árvores quase idênticas"
+    elif similarity > 70:
+        return "Árvores muito similares"
+    elif similarity > 50:
+        return "Árvores moderadamente similares"
+    elif similarity > 30:
+        return "Árvores com similaridade limitada"
+    else:
+        return "Árvores muito diferentes"
+    
 #  WebSocket Endpoints 
 
 async def log_watcher(project_name: str):

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Layout, Menu, Button, Typography, Space, Flex } from 'antd';
+import { Layout, Menu, Button, Typography, Space, Flex, Modal} from 'antd';
 import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
@@ -9,7 +9,7 @@ import {
   BellOutlined,
   HomeOutlined,
   PartitionOutlined,
-  SlidersOutlined
+  SlidersOutlined,
 } from '@ant-design/icons';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 
@@ -53,6 +53,9 @@ function App() {
           backgroundColor: colors.white,
           borderRight: `1px solid ${colors.border}`,
           transition: 'all 0.2s',
+          display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between', // empurra o botão p/ baixo
         }}
       >
         <a href='/'>

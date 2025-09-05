@@ -24,7 +24,7 @@ const { Header, Sider, Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 
-const AkoFlowDocs = () => {
+const PhyloTreeMinerDocs = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [currentSection, setCurrentSection] = useState('home');
   const [currentSubsection, setCurrentSubsection] = useState(null);
@@ -33,7 +33,7 @@ const AkoFlowDocs = () => {
   // Estrutura completa da documentação - centralizada e dinâmica
   const documentationStructure = {
     home: {
-      title: "AkoFlow Docs",
+      title: "PhyloTreeMiner Docs",
       icon: <HomeOutlined />,
       content: (
         <div>
@@ -66,20 +66,20 @@ const AkoFlowDocs = () => {
       count: 3,
       subsections: {
         kubernetesSetup: {
-          title: "AkoFlow Setup Guide: Kubernetes Local Setup (Docker Desktop)",
+          title: "PhyloTreeMiner Setup Guide: Kubernetes Local Setup (Docker Desktop)",
           content: (
             <div>
-              <Title level={2}>AkoFlow Setup Guide: Kubernetes Local Setup (Docker Desktop)</Title>
+              <Title level={2}>PhyloTreeMiner Setup Guide: Kubernetes Local Setup (Docker Desktop)</Title>
               <Paragraph>
-                This guide provides step-by-step instructions for setting up AkoFlow using <strong>Docker Desktop with Kubernetes</strong>. 
-                This is one of several deployment options for AkoFlow, specifically tailored for developers and users who prefer using 
+                This guide provides step-by-step instructions for setting up PhyloTreeMiner using <strong>Docker Desktop with Kubernetes</strong>. 
+                This is one of several deployment options for PhyloTreeMiner, specifically tailored for developers and users who prefer using 
                 Docker Desktop's built-in Kubernetes for local development and testing.
               </Paragraph>
               
               <div style={{ margin: '16px 0', padding: '12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px' }}>
                 <Text>
                   <strong>Note:</strong> This guide focuses solely on the Docker Desktop with Kubernetes setup option. 
-                  AkoFlow supports multiple runtime environments, including SDumont Supercomputer, Singularity, and other 
+                  PhyloTreeMiner supports multiple runtime environments, including SDumont Supercomputer, Singularity, and other 
                   Kubernetes distributions. For those alternative deployment options, please refer to the appropriate documentation.
                 </Text>
               </div>
@@ -94,7 +94,7 @@ const AkoFlowDocs = () => {
                 dataSource={[
                   'Docker Desktop: Download and install Docker Desktop from Docker\'s official website. Ensure Kubernetes is enabled in Docker Desktop (instructions provided below).',
                   'kubectl CLT: Install kubectl to interact with the Kubernetes cluster. Installation guide: Kubernetes CLT installation.',
-                  'AkoFlow Release Client: Download the AkoFlow client from the official GitHub releases: AkoFlow Releases.',
+                  'PhyloTreeMiner Release Client: Download the PhyloTreeMiner client from the official GitHub releases: PhyloTreeMiner Releases.',
                   'System Resources: Minimum 4 CPUs and 4GB RAM allocated to Docker Desktop for Kubernetes. Storage requirements depend on the workflows you plan to execute.'
                 ]}
                 renderItem={(item, index) => (
@@ -108,12 +108,12 @@ const AkoFlowDocs = () => {
           )
         },
         contributing: {
-          title: "Contributing to AkoFlow",
+          title: "Contributing to PhyloTreeMiner",
           content: (
             <div>
-              <Title level={2}>Contributing to AkoFlow</Title>
+              <Title level={2}>Contributing to PhyloTreeMiner</Title>
               <Paragraph>
-                AkoFlow is an open-source project and we welcome contributions from the community. 
+                PhyloTreeMiner is an open-source project and we welcome contributions from the community. 
                 This guide will help you get started with contributing to the project.
               </Paragraph>
               
@@ -141,12 +141,12 @@ const AkoFlowDocs = () => {
           )
         },
         singularitySetup: {
-          title: "AkoFlow Setup Guide: Singularity Local Setup",
+          title: "PhyloTreeMiner Setup Guide: Singularity Local Setup",
           content: (
             <div>
-              <Title level={2}>AkoFlow Setup Guide: Singularity Local Setup</Title>
+              <Title level={2}>PhyloTreeMiner Setup Guide: Singularity Local Setup</Title>
               <Paragraph>
-                This guide provides instructions for setting up AkoFlow using Singularity containers for environments where Docker is not available or suitable.
+                This guide provides instructions for setting up PhyloTreeMiner using Singularity containers for environments where Docker is not available or suitable.
               </Paragraph>
               
               <Title level={3}>Prerequisites</Title>
@@ -155,7 +155,7 @@ const AkoFlowDocs = () => {
                 dataSource={[
                   'Singularity installed on your system',
                   'Basic understanding of container concepts',
-                  'AkoFlow singularity image downloaded'
+                  'PhyloTreeMiner singularity image downloaded'
                 ]}
                 renderItem={(item) => (
                   <List.Item>
@@ -174,20 +174,20 @@ const AkoFlowDocs = () => {
       count: 3,
       subsections: {
         kubernetesSetup: {
-          title: "AkoFlow Setup Guide: Kubernetes Local Setup (Docker Desktop)",
+          title: "PhyloTreeMiner Setup Guide: Kubernetes Local Setup (Docker Desktop)",
           content: (
             <div>
-              <Title level={2}>AkoFlow Setup Guide: Kubernetes Local Setup (Docker Desktop)</Title>
+              <Title level={2}>PhyloTreeMiner Setup Guide: Kubernetes Local Setup (Docker Desktop)</Title>
               <Paragraph>
-                This guide provides step-by-step instructions for setting up AkoFlow using <strong>Docker Desktop with Kubernetes</strong>. 
-                This is one of several deployment options for AkoFlow, specifically tailored for developers and users who prefer using 
+                This guide provides step-by-step instructions for setting up PhyloTreeMiner using <strong>Docker Desktop with Kubernetes</strong>. 
+                This is one of several deployment options for PhyloTreeMiner, specifically tailored for developers and users who prefer using 
                 Docker Desktop's built-in Kubernetes for local development and testing.
               </Paragraph>
               
               <div style={{ margin: '16px 0', padding: '12px', background: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: '4px' }}>
                 <Text>
                   <strong>Note:</strong> This guide focuses solely on the Docker Desktop with Kubernetes setup option. 
-                  AkoFlow supports multiple runtime environments, including SDumont Supercomputer, Singularity, and other 
+                  PhyloTreeMiner supports multiple runtime environments, including SDumont Supercomputer, Singularity, and other 
                   Kubernetes distributions. For those alternative deployment options, please refer to the appropriate documentation.
                 </Text>
               </div>
@@ -202,7 +202,7 @@ const AkoFlowDocs = () => {
                 dataSource={[
                   'Docker Desktop: Download and install Docker Desktop from Docker\'s official website. Ensure Kubernetes is enabled in Docker Desktop (instructions provided below).',
                   'kubectl CLT: Install kubectl to interact with the Kubernetes cluster. Installation guide: Kubernetes CLT installation.',
-                  'AkoFlow Release Client: Download the AkoFlow client from the official GitHub releases: AkoFlow Releases.',
+                  'PhyloTreeMiner Release Client: Download the PhyloTreeMiner client from the official GitHub releases: PhyloTreeMiner Releases.',
                   'System Resources: Minimum 4 CPUs and 4GB RAM allocated to Docker Desktop for Kubernetes. Storage requirements depend on the workflows you plan to execute.'
                 ]}
                 renderItem={(item, index) => (
@@ -216,12 +216,12 @@ const AkoFlowDocs = () => {
           )
         },
         contributing: {
-          title: "Contributing to AkoFlow",
+          title: "Contributing to PhyloTreeMiner",
           content: (
             <div>
-              <Title level={2}>Contributing to AkoFlow</Title>
+              <Title level={2}>Contributing to PhyloTreeMiner</Title>
               <Paragraph>
-                AkoFlow is an open-source project and we welcome contributions from the community. 
+                PhyloTreeMiner is an open-source project and we welcome contributions from the community. 
                 This guide will help you get started with contributing to the project.
               </Paragraph>
               
@@ -249,12 +249,12 @@ const AkoFlowDocs = () => {
           )
         },
         singularitySetup: {
-          title: "AkoFlow Setup Guide: Singularity Local Setup",
+          title: "PhyloTreeMiner Setup Guide: Singularity Local Setup",
           content: (
             <div>
-              <Title level={2}>AkoFlow Setup Guide: Singularity Local Setup</Title>
+              <Title level={2}>PhyloTreeMiner Setup Guide: Singularity Local Setup</Title>
               <Paragraph>
-                This guide provides instructions for setting up AkoFlow using Singularity containers for environments where Docker is not available or suitable.
+                This guide provides instructions for setting up PhyloTreeMiner using Singularity containers for environments where Docker is not available or suitable.
               </Paragraph>
               
               <Title level={3}>Prerequisites</Title>
@@ -263,7 +263,7 @@ const AkoFlowDocs = () => {
                 dataSource={[
                   'Singularity installed on your system',
                   'Basic understanding of container concepts',
-                  'AkoFlow singularity image downloaded'
+                  'PhyloTreeMiner singularity image downloaded'
                 ]}
                 renderItem={(item) => (
                   <List.Item>
@@ -276,18 +276,18 @@ const AkoFlowDocs = () => {
         }
       }
     },
-    akoFlow: {
-      title: "AkoFlow",
+    PhyloTreeMiner: {
+      title: "PhyloTreeMiner",
       icon: <FileTextOutlined />,
       count: 4,
       subsections: {
         whatIs: {
-          title: "What is AkoFlow?",
+          title: "What is PhyloTreeMiner?",
           content: (
             <div>
-              <Title level={2}>What is AkoFlow?</Title>
+              <Title level={2}>What is PhyloTreeMiner?</Title>
               <Paragraph>
-                AkoFlow is a workflow management system designed specifically for scientific computing environments. 
+                PhyloTreeMiner is a workflow management system designed specifically for scientific computing environments. 
                 It provides a flexible and scalable way to define, execute, and monitor complex computational workflows.
               </Paragraph>
               
@@ -315,7 +315,7 @@ const AkoFlowDocs = () => {
             <div>
               <Title level={2}>Workflow & Activities</Title>
               <Paragraph>
-                In AkoFlow, a workflow is a directed acyclic graph (DAG) of activities. Each activity represents a computational task that needs to be executed.
+                In PhyloTreeMiner, a workflow is a directed acyclic graph (DAG) of activities. Each activity represents a computational task that needs to be executed.
               </Paragraph>
               
               <Title level={3}>Activity Types</Title>
@@ -342,7 +342,7 @@ const AkoFlowDocs = () => {
             <div>
               <Title level={2}>Workflow Specification</Title>
               <Paragraph>
-                AkoFlow uses a YAML-based specification to define workflows. This specification describes the structure of the workflow, its activities, and their dependencies.
+                PhyloTreeMiner uses a YAML-based specification to define workflows. This specification describes the structure of the workflow, its activities, and their dependencies.
               </Paragraph>
               
               <Title level={3}>Basic Structure</Title>
@@ -363,12 +363,12 @@ activities:
           )
         },
         integration: {
-          title: "Integration with AkoFlow",
+          title: "Integration with PhyloTreeMiner",
           content: (
             <div>
-              <Title level={2}>Integration with AkoFlow</Title>
+              <Title level={2}>Integration with PhyloTreeMiner</Title>
               <Paragraph>
-                AkoFlow provides several integration points for connecting with external systems and services.
+                PhyloTreeMiner provides several integration points for connecting with external systems and services.
               </Paragraph>
               
               <Title level={3}>Supported Integrations</Title>
@@ -517,7 +517,7 @@ activities:
           <Menu 
             mode="inline" 
             defaultSelectedKeys={['home']}
-            defaultOpenKeys={['gettingStarted', 'akoFlow']}
+            defaultOpenKeys={['gettingStarted', 'PhyloTreeMiner']}
             style={{ borderRight: 0, height: '100%' }}
             items={generateMenuItems()}
           />
@@ -548,4 +548,4 @@ activities:
   );
 };
 
-export default AkoFlowDocs;
+export default PhyloTreeMinerDocs;

@@ -96,16 +96,10 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
     }
   }, [data, metadata, processMetadata]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (!filteredTreeData || !svgRef.current) return;
     renderTree();
-  }, [
-    filteredTreeData,
-    colorBy,
-    collapsedNodes,
-    selectedNode,
-    metadata
-  ]);
+  }, [filteredTreeData, colorBy, collapsedNodes, selectedNode, metadata]);
 
   function findAllDataTerminals(obj) {
     let results = [];
@@ -263,7 +257,17 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
     return tree;
   };
 
-
+  const countNodes = (treeData) => {
+    let count = 0;
+    const countRecursive = (node) => {
+      count++;
+      if (node.children) {
+        node.children.forEach(countRecursive);
+      }
+    };
+    countRecursive(treeData);
+    return count;
+  };
 
   const renderTree = () => {
     const svg = d3.select(svgRef.current);
@@ -275,11 +279,21 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
     }
 
     const { clientWidth, clientHeight } = containerRef.current;
-
     const margin = { top: 50, right: 300, bottom: 50, left: 50 };
-    const width = clientWidth - margin.left - margin.right;
-    const height = clientHeight - margin.top - margin.bottom;
+    let width = clientWidth - margin.left - margin.right;
+    let height = clientHeight - margin.top - margin.bottom;
     const radius = Math.min(width, height) / 2;
+
+    const nodeCount = countNodes(filteredTreeData);
+    const isLargeTree = nodeCount > 100;
+
+    if(isLargeTree){ height *= 6; width *= 6};
+
+    const baseRadius = isLargeTree ? 3 : 6;
+    const fontSize = isLargeTree ? "10px" : "12px";
+    const strokeWidth = isLargeTree ? 1 : 1.5;
+
+    const autoLayoutType = isLargeTree ? "radial" : layoutType;
 
     const g = svg.append("g");
 
@@ -370,12 +384,12 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
           handleNodeClick(event, d);
         } else {
           event.stopPropagation();
-            onNodeClick({
-              name: d.data.name,
-              depth: d.depth,
-              children: d.children ? d.children.length : 0,
-              data: d.data,
-            });
+          onNodeClick({
+            name: d.data.name,
+            depth: d.depth,
+            children: d.children ? d.children.length : 0,
+            data: d.data,
+          });
         }
       })
       .on("mouseover", (event, d) => {
@@ -387,13 +401,26 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
         highlightPath(d, false);
       });
 
+    const shouldRenderDetail = (d, isLargeTree) => {
+  if (!isLargeTree) return true;
+  
+  // Mostrar detalhes apenas para nós próximos ao cursor ou selecionados
+  if (hoveredNode && isNodeInPath(d, hoveredNode)) return true;
+  if (selectedNode === d.data.name) return true;
+  if (d.depth <= 1) return true; // Primeiros níveis
+  
+  return false;
+};
+
+
     node
       .append("circle")
       .attr("r", (d) => {
-        if (d.children && !collapsedNodes.has(d.data.name)) return 6;
-        if (selectedNode === d.data.name) return 8;
-        if (hoveredNode && isNodeInPath(d, hoveredNode)) return 6;
-        return 4;
+        if (!shouldRenderDetail(d, isLargeTree)) return baseRadius - 1;
+    if (d.children && !collapsedNodes.has(d.data.name)) return baseRadius + 2;
+    if (selectedNode === d.data.name) return baseRadius + 4;
+    if (hoveredNode && isNodeInPath(d, hoveredNode)) return baseRadius + 2;
+    return baseRadius;
       })
       .attr("fill", (d) => {
         if (selectedNode === d.data.name) return "#ff4d4f";
@@ -446,6 +473,9 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
       })
       .style("font-size", "12px")
       .style("display", (d) => {
+        // if (isLargeTree && nodeCount > 100) {
+        //   return  d === hoveredNode ? "block" : "none";
+        // }
         if (d.parent && collapsedNodes.has(d.parent.data.name)) return "none";
         if (d.children && d.data.name && d.data.name.startsWith("Inner"))
           return "none";
