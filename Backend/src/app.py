@@ -1,20 +1,21 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Literal, Optional, Any, Tuple
 import os, datetime, mimetypes, asyncio, re, psutil, json
-import glob, tempfile
+import glob, tempfile, zipfile, shutil
 
-from Bio import Phylo
-from io import StringIO
+from Bio import Phylo, SeqIO, Entrez
+from io import StringIO, BytesIO
 import numpy as np
 from dendropy import Tree, TreeList, TaxonNamespace
 from dendropy.calculate import treecompare
 
 from src.routers import neo4j_router, ncbi_router
 from src.services.neo4j_services import neo4j_service
+from src.services.ncbi_acquisition import NCBIAcquisition
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_BASE_WORKFLOW = os.path.abspath(os.path.join(BASE_DIR, "../../BioComp_UFF"))
@@ -22,6 +23,9 @@ DATA_ROOT = os.path.join(PATH_BASE_WORKFLOW, "data")
 PROJECTS_ROOT = os.path.join(PATH_BASE_WORKFLOW, "projects")
 
 WORKFLOW_SCRIPT_PATH = os.path.join(PATH_BASE_WORKFLOW, "workflow.py")
+
+NCBI_WORK_DIR = os.path.join(BASE_DIR, "temp_ncbi")
+os.makedirs(NCBI_WORK_DIR, exist_ok=True)
 
 if not os.path.exists(PROJECTS_ROOT) or not os.path.isdir(PROJECTS_ROOT):
     raise RuntimeError(f"O diretório base de projetos não foi encontrado em: {PROJECTS_ROOT}")
@@ -39,6 +43,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+ncbi_service = NCBIAcquisition(
+    email="seu_email@example.com",  
+    work_dir=NCBI_WORK_DIR,
+    data_root=DATA_ROOT
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,6 +64,8 @@ app.include_router(
     prefix="/api/neo4j",
     tags=["Neo4j"]
 )
+
+
 app.include_router(
     ncbi_router.router,
     prefix="/api/ncbi",
@@ -81,7 +92,28 @@ class WorkflowConfig(BaseModel):
     """Modelo para as configurações do workflow enviadas pelo frontend."""
     configs: Dict[str, Any] = Field(..., description="Dicionário de configurações para o workflow.")
 
+class NCBIDownloadRequest(BaseModel):
+    query: str = Field(..., description="Query de busca no NCBI")
+    species_name: Optional[str] = Field(None, description="Nome personalizado para a espécie (opcional)")
+    retmax: int = Field(100, description="Número máximo de sequências para download")
+    initial_min_length: Optional[int] = Field(None, description="Comprimento mínimo inicial (bp)")
+    refined_min_length: Optional[int] = Field(None, description="Comprimento mínimo refinado (bp)")
+    utr5_end: Optional[int] = Field(None, description="Posição final do UTR 5'")
+    utr3_start: Optional[int] = Field(None, description="Posição inicial do UTR 3'")
+    similarity_threshold: Optional[float] = Field(None, description="Threshold de similaridade para remoção de duplicatas")
 
+class NCBIAccessionRequest(BaseModel):
+    accessions: List[str] = Field(..., description="Lista de números de acesso")
+    species_name: Optional[str] = Field(None, description="Nome personalizado para a espécie (opcional)")
+    initial_min_length: Optional[int] = Field(None, description="Comprimento mínimo inicial (bp)")
+    refined_min_length: Optional[int] = Field(None, description="Comprimento mínimo refinado (bp)")
+    utr5_end: Optional[int] = Field(None, description="Posição final do UTR 5'")
+    utr3_start: Optional[int] = Field(None, description="Posição inicial do UTR 3'")
+    similarity_threshold: Optional[float] = Field(None, description="Threshold de similaridade para remoção de duplicatas")
+
+class NCBISearchRequest(BaseModel):
+    query: str = Field(..., description="Termo para busca de espécies")
+    retmax: int = Field(10, description="Número máximo de resultados")
 
 #  WebSocket para Monitoramento de Progresso 
 class ProgressConnectionManager:
@@ -202,8 +234,6 @@ async def stream_workflow_output(project_name: str, process: asyncio.subprocess.
     if project_name in running_workflows:
         del running_workflows[project_name]
 
-
-
 @app.post("/projects/{project_name}/run", status_code=202)
 async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
     """
@@ -270,6 +300,66 @@ async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Falha ao iniciar o workflow: {e}")
 
+@app.post("/projects/{project_name}/rerun", status_code=202)
+async def rerun_workflow(project_name: str):
+    """
+    Re-executa um workflow existente usando as configurações salvas.
+    """
+    project_path = os.path.abspath(os.path.join(PROJECTS_ROOT, project_name))
+    config_backup_path = os.path.join(project_path, "out", "outputs", "config_backup.json")
+    
+    if not project_path.startswith(PROJECTS_ROOT) or not os.path.isdir(project_path):
+        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    
+    if not os.path.exists(config_backup_path):
+        raise HTTPException(status_code=404, detail="Arquivo de configuração não encontrado para este projeto.")
+    
+    if project_name in running_workflows:
+        raise HTTPException(status_code=409, detail=f"O workflow para o projeto '{project_name}' já está em execução.")
+
+    try:
+        with open(config_backup_path, 'r') as f:
+            saved_config = json.load(f)
+        
+        command = [
+            "python3",
+            WORKFLOW_SCRIPT_PATH,
+            "-cw",
+            json.dumps(saved_config)
+        ]
+
+        print(f"Reexecutando projeto '{project_name}': {' '.join(command)}")
+        
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=PATH_BASE_WORKFLOW 
+        )
+
+        running_workflows[project_name] = process
+        asyncio.create_task(stream_workflow_output(project_name, process))
+
+        return {"message": f"Workflow do projeto '{project_name}' reexecutado com sucesso."}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Falha ao reexecutar o workflow: {e}")
+
+@app.get("/projects/{project_name}/can-rerun")
+async def can_rerun_project(project_name: str):
+    """
+    Verifica se um projeto pode ser reexecutado (tem configurações salvas).
+    """
+    project_path = os.path.abspath(os.path.join(PROJECTS_ROOT, project_name))
+    config_backup_path = os.path.join(project_path, "out", "outputs", "config_backup.json")
+    
+    if not project_path.startswith(PROJECTS_ROOT) or not os.path.isdir(project_path):
+        return {"can_rerun": False, "reason": "Projeto não encontrado"}
+    
+    if not os.path.exists(config_backup_path):
+        return {"can_rerun": False, "reason": "Configurações não salvas"}
+    
+    return {"can_rerun": True}
 
 @app.get("/projects", response_model=List[Project])
 async def get_projects():
@@ -304,7 +394,7 @@ async def get_projects():
             
             try:
                 with open(latest_log, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = [line for line in f if line.strip()] # Lê apenas linhas não vazias
+                    lines = [line for line in f if line.strip()] 
                 
                 if lines:
                     first_match = timestamp_regex.match(lines[0])
@@ -312,16 +402,14 @@ async def get_projects():
                         first_line_time = datetime.datetime.strptime(first_match.group(1), "%Y-%m-%d %H:%M:%S,%f")
                         
                         if project_name in running_workflows and first_line_time.date() == today:
-                            # Processo rodando: calcula segundos decorridos
                             duration_seconds = int((now - first_line_time).total_seconds())
                         else:
-                            # Processo terminado: calcula segundos totais
                             last_match = timestamp_regex.match(lines[-1])
                             if last_match:
                                 last_line_time = datetime.datetime.strptime(last_match.group(1), "%Y-%m-%d %H:%M:%S,%f")
                                 duration_seconds = int((last_line_time - first_line_time).total_seconds())
             except Exception:
-                duration_seconds = None # Em caso de erro de leitura, retorna None
+                duration_seconds = None
 
         projects.append(Project(
             name=project_name,
@@ -501,9 +589,6 @@ async def get_file_content(path: str = Query(..., description="Caminho relativo 
 
     raise HTTPException(status_code=415, detail="Tipo de arquivo não suportado para pré-visualização.")
 
-# @app.get("/")
-# async def read_root():
-#     return {"message": "Bem-vindo à API FastAPI!"}
 
 @app.head("/")
 def read_root_head():
@@ -594,7 +679,7 @@ async def get_projects_details(project_names: List[str]):
                     if not found_input:
                         match = input_file_regex.search(line)
                         if match:
-                            input_file = os.path.basename(match.group(1).strip())
+                            input_file = match.group(1).strip()
                             found_input = True
                     
                     if found_input and found_step:
@@ -751,7 +836,6 @@ def find_conflicting_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
     tree1.encode_bipartitions()
     tree2.encode_bipartitions()
     
-    # Obter todas as bipartições não triviais
     bipartitions1 = set()
     bipartitions2 = set()
     
@@ -763,7 +847,6 @@ def find_conflicting_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
         if edge.bipartition and not edge.bipartition.is_trivial():
             bipartitions2.add(edge.bipartition.split_bitmask)
     
-    # Clados conflitantes, presentes em uma árvore mas não na outra
     conflicting_clades = len(bipartitions1.symmetric_difference(bipartitions2))
     
     return conflicting_clades, []
@@ -810,15 +893,12 @@ async def compare_trees(tree_data: dict):
         if not tree1_nexus or not tree2_nexus:
             raise HTTPException(status_code=400, detail="Both tree1 and tree2 content are required")
         
-        # Extrair a primeira árvore para obter o taxon namespace
         trees1 = extract_trees_from_nexus(tree1_nexus)
         if len(trees1) == 0:
             raise HTTPException(status_code=400, detail="No trees found in tree1 Nexus content")
         
-        # Usar o taxon namespace da primeira árvore para a segunda
         taxon_namespace = trees1[0].taxon_namespace
         
-        # Extrair a segunda árvore com o mesmo taxon namespace
         trees2 = extract_trees_from_nexus(tree2_nexus, taxon_namespace)
         if len(trees2) == 0:
             raise HTTPException(status_code=400, detail="No trees found in tree2 Nexus content")
@@ -952,6 +1032,201 @@ async def log_watcher(project_name: str):
         print(f"Observador de histórico para o projeto {project_name} concluído.")
         if project_name in active_watchers:
             del active_watchers[project_name]
+            
+
+@app.post("/api/ncbi/download")
+async def ncbi_download_sequences(request: NCBIDownloadRequest):
+    try:
+        result = ncbi_service.download_sequences(
+            query=request.query,
+            species_name=request.species_name,  
+            retmax=request.retmax,
+            initial_min_length=request.initial_min_length,
+            refined_min_length=request.refined_min_length,
+            utr5_end=request.utr5_end,
+            utr3_start=request.utr3_start,
+            similarity_threshold=request.similarity_threshold
+        )
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": f"Download concluído: {result['count']} sequências de {result['species']}",
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no download: {str(e)}")
+    
+@app.post("/api/ncbi/download-accessions")
+async def ncbi_download_by_accessions(request: NCBIAccessionRequest):
+    """
+    Baixa sequências do NCBI baseado em números de acesso.
+    """
+    try:
+        result = ncbi_service.download_from_accessions(
+            accessions=request.accessions,
+            species_name=request.species_name,
+            initial_min_length=request.initial_min_length,
+            refined_min_length=request.refined_min_length,
+            utr5_end=request.utr5_end,
+            utr3_start=request.utr3_start,
+            similarity_threshold=request.similarity_threshold
+        )
+        
+        if result["success"]:
+            return {
+                "success": True,
+                "message": f"Download concluído: {result['count']} sequências de {result['species']}",
+                "data": result
+            }
+        else:
+            raise HTTPException(status_code=400, detail=result["message"])
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro no download: {str(e)}")
+    
+@app.post("/api/ncbi/search-species")
+async def ncbi_search_species(request: NCBISearchRequest):
+    """
+    Busca espécies no NCBI para autocompletar.
+    """
+    try:
+        species_list = ncbi_service.search_species(
+            query=request.query,
+            retmax=request.retmax
+        )
+        
+        return {
+            "success": True,
+            "count": len(species_list),
+            "species": species_list
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na busca: {str(e)}")
+
+@app.get("/api/ncbi/email")
+async def get_ncbi_email():
+    """
+    Retorna o email configurado para o NCBI.
+    """
+    return {"email": Entrez.email}
+
+@app.post("/api/ncbi/set-email")
+async def set_ncbi_email(email: str = Form(...)):
+    """
+    Define o email para consultas ao NCBI.
+    """
+    try:
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            raise HTTPException(status_code=400, detail="Formato de email inválido")
+        
+        Entrez.email = email
+        ncbi_service = NCBIAcquisition(
+            email=email,
+            work_dir=NCBI_WORK_DIR,
+            data_root=DATA_ROOT
+        )
+        
+        return {"success": True, "message": f"Email configurado: {email}"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao configurar email: {str(e)}")
+    
+@app.post("/upload-data")
+async def upload_data(
+    name: str = Form(..., description="Nome da pasta onde os dados serão salvos"),
+    files: List[UploadFile] = File(..., description="Arquivos para upload (FASTA, ZIP)")
+):
+    """
+    Faz upload de arquivos para análise, concatenando sequências em um único arquivo FASTA.
+    
+    Args:
+        name (str): Nome da pasta onde os dados serão salvos
+        files (List[UploadFile]): Arquivos para upload (FASTA ou ZIP com FASTA)
+    
+    Returns:
+        dict: Mensagem de sucesso com informações do upload
+    """
+    try:
+        if not name or not re.match(r'^[a-zA-Z0-9_-]+$', name):
+            raise HTTPException(status_code=400, detail="Nome inválido. Use apenas letras, números, hífens e underscores.")
+        
+        target_dir = os.path.join(DATA_ROOT, name)
+        os.makedirs(target_dir, exist_ok=True)
+        
+        final_fasta_path = os.path.join(target_dir, "concatenated_sequences.fasta")
+        all_sequences = []
+        processed_files = []
+        
+        for uploaded_file in files:
+            file_content = await uploaded_file.read()
+            
+            if uploaded_file.filename.endswith('.zip'):
+                with zipfile.ZipFile(BytesIO(file_content), 'r') as zip_ref:
+                    zip_files = zip_ref.namelist()
+                    fasta_files = [f for f in zip_files if f.lower().endswith(('.fasta', '.fa', '.fas', '.faa',''))]
+                    
+                    for fasta_file in fasta_files:
+                        with zip_ref.open(fasta_file) as f:
+                            content = f.read().decode('utf-8', errors='ignore')
+                            sequences = list(SeqIO.parse(StringIO(content), "fasta"))
+                            all_sequences.extend(sequences)
+                            processed_files.append(fasta_file)
+            
+            elif uploaded_file.filename.lower().endswith(('.fasta', '.fa', '.fas', '.faa')):
+                content = file_content.decode('utf-8', errors='ignore')
+                sequences = list(SeqIO.parse(StringIO(content), "fasta"))
+                all_sequences.extend(sequences)
+                processed_files.append(uploaded_file.filename)
+            
+            else:
+                other_file_path = os.path.join(target_dir, uploaded_file.filename)
+                with open(other_file_path, 'wb') as f:
+                    f.write(file_content)
+                processed_files.append(uploaded_file.filename)
+        
+        if all_sequences:
+            with open(final_fasta_path, 'w') as output_handle:
+                SeqIO.write(all_sequences, output_handle, "fasta")
+        
+        return {
+            "message": "Upload realizado com sucesso",
+            "folder_name": name,
+            "processed_files": processed_files,
+            "total_sequences": len(all_sequences),
+            "output_file": "concatenated_sequences.fasta" if all_sequences else None
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro durante o upload: {str(e)}")
+
+@app.get("/uploaded-data", response_model=List[Project])
+async def get_uploaded_data():
+    """
+    Lista todos os conjuntos de dados enviados via upload.
+    """
+    uploaded_folders = []
+    for folder_name in sorted(os.listdir(DATA_ROOT)):
+        full_path = os.path.join(DATA_ROOT, folder_name)
+        if os.path.isdir(full_path):
+            fasta_files = glob.glob(os.path.join(full_path, "*.fasta")) + \
+                         glob.glob(os.path.join(full_path, "*.fa")) + \
+                         glob.glob(os.path.join(full_path, "*.fas")) + \
+                         glob.glob(os.path.join(full_path, "*")) + \
+                         glob.glob(os.path.join(full_path, "*.faa"))
+            
+            if fasta_files:
+                uploaded_folders.append(Project(
+                    name=folder_name,
+                    last_modified=datetime.datetime.fromtimestamp(os.path.getmtime(full_path))
+                ))
+    
+    return uploaded_folders
+            
 
 @app.websocket("/ws/progress/{project_name}")
 async def websocket_progress_endpoint(websocket: WebSocket, project_name: str):

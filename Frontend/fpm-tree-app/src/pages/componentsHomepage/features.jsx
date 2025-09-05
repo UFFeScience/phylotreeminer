@@ -12,12 +12,22 @@ import bg1 from '../../assets/screen_1.png';
 import bg2 from '../../assets/screen_2.png';
 import bg3 from '../../assets/screen_3.png';
 import bg4 from '../../assets/screen_4.png';
+import bg5 from '../../assets/screen_5.png';
+import bg6 from '../../assets/screen_6.png';
+import bg7 from '../../assets/screen_7.png';
+import bg8 from '../../assets/screen_8.png';
+import bg9 from '../../assets/screen_9.png';
 
 const carouselItems = [
     { image: bg1 },
     { image: bg2 },
     { image: bg3 },
     { image: bg4 },
+    // { image: bg5 },
+    // { image: bg6 },
+    { image: bg7 },
+    // { image: bg8 },
+    // { image: bg9 },
 ];
 
 

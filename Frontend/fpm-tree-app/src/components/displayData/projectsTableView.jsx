@@ -1,141 +1,270 @@
+import { useEffect, useState } from "react";
 import {
-    Typography, Button, Space, Tag, Table, Progress, Dropdown, Menu,
-    Empty
-} from 'antd';
+  Typography,
+  Button,
+  Space,
+  Tag,
+  Table,
+  Progress,
+  Dropdown,
+  Menu,
+  Empty,
+} from "antd";
 import {
-    MoreOutlined,
-    LoadingOutlined,
-    FileOutlined
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+  MoreOutlined,
+  LoadingOutlined,
+  FileOutlined,
+  PlayCircleOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 
 const { Text } = Typography;
 
 const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
+  const [rerunLoading, setRerunLoading] = useState({});
 
-    if (projects.length === 0) {
-        const navigate = useNavigate();
-        return (
-            <Empty
-                description={
-                    <Typography.Text>
-                        No projects found. Start a new project.
-                    </Typography.Text>
-                }
-            >
-                <Button type='primary' onClick={() => { navigate('/workflow'); }}>Create Now</Button>
-            </Empty>
-        );
-    };
+  if (projects.length === 0) {
+    const navigate = useNavigate();
+    return (
+      <Empty
+        description={
+          <Typography.Text>
+            No projects found. Start a new project.
+          </Typography.Text>
+        }
+      >
+        <Button
+          type="primary"
+          onClick={() => {
+            navigate("/workflow");
+          }}
+        >
+          Create Now
+        </Button>
+      </Empty>
+    );
+  }
 
-    const progress_percent = {
-        "Construction of distance matrix.": 14.0,
-        "Tree Construction with parsimony method.": 24.8,
-        "Tree Construction with distance matrix.": 40.0,
-        "Construction of Subtrees.": 80.5,
-        "Frequent subtree mining.": 95.2,
-        "Completed successfully!": 100
+  const handleRerunProject = async (projectName) => {
+    try {
+      const checkResponse = await fetch(
+        `http://localhost:8000/projects/${projectName}/can-rerun`
+      );
+      const checkData = await checkResponse.json();
+
+      if (!checkData.can_rerun) {
+        message.warning(`Não é possível reexecutar: ${checkData.reason}`);
+        return;
+      }
+    } catch (error) {
+      message.error("Erro ao verificar projeto");
+      return;
     }
+    setRerunLoading((prev) => ({ ...prev, [projectName]: true }));
 
+    try {
+      const response = await fetch(
+        `http://localhost:8000/projects/${projectName}/rerun`,
+        {
+          method: "POST",
+        }
+      );
 
-    const columns = [
-        {
-            title: 'Project Name',
-            dataIndex: 'name',
-            key: 'name',
-            sorter: (a, b) => a.name.localeCompare(b.name),
-            render: (text, record) => (
-                <a onClick={() => onProjectSelect(record.name)}>{text}</a>
-            ),
-        },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            filters: Object.entries(statusMap).map(([key, value]) => ({
-                text: value.text,
-                value: key,
-            })),
-            sorter: (a, b) => a.status.localeCompare(b.status),
-            onFilter: (value, record) => record.status === value,
-            render: (status) => {
-                const statusInfo = statusMap[status] || {};
-                return <Tag color={statusInfo.color} icon={statusInfo.icon}>{statusInfo.text}</Tag>;
-            },
-        },
-        {
-            title: 'Progress',
-            key: 'progress',
-            render: (record) => (
-                record.status === 'running' ? <Progress percent={progress_percent[record.details?.current_step]} status />
-                    : record.status === 'completed' ? <Progress percent={100} status />
-                        : record.status === 'failed' ? <Progress percent={100} status="exception" />
-                            : <Text type="secondary">Loading <LoadingOutlined /></Text>
-            )
-        },
-        {
-            title: 'Last Modified',
-            dataIndex: 'last_modified',
-            key: 'last_modified',
-            sorter: (a, b) => new Date(a.last_modified) - new Date(b.last_modified),
-            render: (date) => new Date(date).toLocaleString('pt-BR'),
-        },
-        {
-            title: 'Duration',
-            dataIndex: 'duration',
-            key: 'duration',
-            sorter: (a, b) => (a.duration || 0) - (b.duration || 0),
-            render: (totalSeconds) => {
-                if (totalSeconds === null || totalSeconds === undefined) {
-                    return '—';
-                }
+      if (response.ok) {
+        message.success(`Projeto ${projectName} está sendo reexecutado!`);
+        onRefresh(); 
+      } else {
+        const errorData = await response.json();
+        message.error(`Erro ao reexecutar: ${errorData.detail}`);
+      }
+    } catch (error) {
+      message.error("Erro de conexão ao reexecutar projeto");
+    } finally {
+      setRerunLoading((prev) => ({ ...prev, [projectName]: false }));
+    }
+  };
 
-                const hours = Math.floor(totalSeconds / 3600);
-                const minutes = Math.floor((totalSeconds % 3600) / 60);
-                const seconds = totalSeconds % 60;
+  const handleDeleteProject = (projectName) => {
+    Modal.confirm({
+      title: "Confirmar exclusão",
+      content: `Tem certeza que deseja excluir o projeto "${projectName}"? Esta ação não pode ser desfeita.`,
+      okText: "Excluir",
+      okType: "danger",
+      cancelText: "Cancelar",
+      onOk: async () => {
+        try {
+          message.info("Funcionalidade de exclusão em desenvolvimento");
+        } catch (error) {
+          message.error("Erro ao excluir projeto");
+        }
+      },
+    });
+  };
 
-                const format = (num) => String(num).padStart(2, '0');
+  const progress_percent = {
+    "Construction of distance matrix.": 14.0,
+    "Tree Construction with parsimony method.": 24.8,
+    "Tree Construction with distance matrix.": 40.0,
+    "Construction of Subtrees.": 80.5,
+    "Frequent subtree mining.": 95.2,
+    "Completed successfully!": 100,
+  };
 
-                return `${format(hours)}:${format(minutes)}:${format(seconds)}`;
-            },
-        },
-        {
-            title: 'Input',
-            key: 'input',
-            render: (_, record) => (
-                <Text>
-                    <FileOutlined style={{ marginRight: 8 }} />
-                    {record.details?.input_file || '...'}
-                </Text>
-            ),
-        },
-        {
-            title: 'Current Stage',
-            key: 'step',
-            render: (_, record) => <Text>{record.details?.current_step || '...'}</Text>,
-        },
-        {
-            title: 'Actions',
-            key: 'actions',
-            render: (record) => (
-                <Space>
-                    <Button type="primary" ghost onClick={() => onProjectSelect(record.name)}>
-                        Details
-                    </Button>
-                    <Dropdown overlay={
-                        <Menu>
-                            <Menu.Item key="1" disabled>Re-run Project</Menu.Item>
-                            <Menu.Item key="2" danger disabled>Delete Project</Menu.Item>
-                        </Menu>
-                    }>
-                        <Button icon={<MoreOutlined />} />
-                    </Dropdown>
-                </Space>
-            ),
-        },
-    ];
+  const columns = [
+    {
+      title: "Project Name",
+      dataIndex: "name",
+      key: "name",
+      sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (text, record) => (
+        <a onClick={() => onProjectSelect(record.name)}>{text}</a>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      filters: Object.entries(statusMap).map(([key, value]) => ({
+        text: value.text,
+        value: key,
+      })),
+      sorter: (a, b) => a.status.localeCompare(b.status),
+      onFilter: (value, record) => record.status === value,
+      render: (status) => {
+        const statusInfo = statusMap[status] || {};
+        return (
+          <Tag color={statusInfo.color} icon={statusInfo.icon}>
+            {statusInfo.text}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: "Progress",
+      key: "progress",
+      render: (record) =>
+        record.status === "running" ? (
+          <Progress
+            percent={progress_percent[record.details?.current_step]}
+            status
+          />
+        ) : record.status === "completed" ? (
+          <Progress percent={100} status />
+        ) : record.status === "failed" ? (
+          <Progress percent={100} status="exception" />
+        ) : (
+          <Text type="secondary">
+            Loading <LoadingOutlined />
+          </Text>
+        ),
+    },
+    {
+      title: "Last Modified",
+      dataIndex: "last_modified",
+      key: "last_modified",
+      sorter: (a, b) => new Date(a.last_modified) - new Date(b.last_modified),
+      render: (date) => new Date(date).toLocaleString("pt-BR"),
+    },
+    {
+      title: "Duration",
+      dataIndex: "duration",
+      key: "duration",
+      sorter: (a, b) => (a.duration || 0) - (b.duration || 0),
+      render: (totalSeconds) => {
+        if (totalSeconds === null || totalSeconds === undefined) {
+          return "—";
+        }
 
-    return <Table columns={columns} dataSource={projects} rowKey="name" pagination={{ pageSize: 10 }} />;
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        const format = (num) => String(num).padStart(2, "0");
+
+        return `${format(hours)}:${format(minutes)}:${format(seconds)}`;
+      },
+    },
+    {
+      title: "Input",
+      key: "input",
+      render: (_, record) => (
+        <Text>
+          <FileOutlined style={{ marginRight: 8 }} />
+          {record.details?.input_file || "..."}
+        </Text>
+      ),
+    },
+    {
+      title: "Current Stage",
+      key: "step",
+      render: (_, record) => (
+        <Text>{record.details?.current_step || "..."}</Text>
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (record) => (
+        <Space>
+          <Button
+            type="primary"
+            ghost
+            onClick={() => onProjectSelect(record.name)}
+          >
+            Details
+          </Button>
+
+          {/* <Button 
+            type="default" 
+            icon={<PlayCircleOutlined />}
+            loading={rerunLoading[record.name]}
+            onClick={() => handleRerunProject(record.name)}
+            disabled={record.status === 'running'}
+          >
+            Re-run
+          </Button> */}
+
+          <Dropdown
+            overlay={
+              <Menu>
+                <Menu.Item
+                  key="rerun"
+                  icon={<PlayCircleOutlined />}
+                  onClick={() => handleRerunProject(record.name)}
+                  disabled={
+                    record.status === "running" || rerunLoading[record.name]
+                  }
+                >
+                  Re-run Project
+                </Menu.Item>
+                <Menu.Item
+                  key="delete"
+                  icon={<DeleteOutlined />}
+                  onClick={() => handleDeleteProject(record.name)}
+                  danger
+                  disabled
+                >
+                  Delete Project
+                </Menu.Item>
+              </Menu>
+            }
+          >
+            <Button icon={<MoreOutlined />} />
+          </Dropdown>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <Table
+      columns={columns}
+      dataSource={projects}
+      rowKey="name"
+      pagination={{ pageSize: 10 }}
+    />
+  );
 };
 
 export default ProjectsTableView;

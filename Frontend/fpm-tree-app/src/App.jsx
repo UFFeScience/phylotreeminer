@@ -55,7 +55,7 @@ function App() {
           transition: 'all 0.2s',
           display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between', // empurra o botão p/ baixo
+        justifyContent: 'space-between', 
         }}
       >
         <a href='/'>
