@@ -229,14 +229,14 @@ const PipelineConfigurator = () => {
         fetchFoldersData();
       } else {
         messageInfo.error({
-          content: `Download Failed: ${data.data.message}`,
+          content: `Download Failed: ${data?.detail}`,
           key: "ncbi-download",
           duration: 5,
         });
       }
     } catch (error) {
       messageInfo.error({
-        content: `Connection Error: ${error.message}`,
+        content: `Connection Error: ${error?.message}`,
         key: "ncbi-download",
         duration: 5,
       });
@@ -321,7 +321,7 @@ const PipelineConfigurator = () => {
                 : values.trees?.construct_method,
             ignore_mode: values.trees?.ignore_mode || "",
             num_threads: values.trees?.num_threads || 1,
-            construct_method: values.trees?.construct_method || "distance",
+            construct_method: values.trees?.algorithm_reconstruct || "nj",
             alignment_method: values.trees?.alignment_method || "mafft",
             input_format: values.trees?.input_format || "nexus",
             output_format: values.trees?.output_format || "nexus",
@@ -446,12 +446,12 @@ const PipelineConfigurator = () => {
       output_log: outputPath,
 
       tree_config: {
-        mode: trees.mode === "auto" ? "auto" : trees.construct_method,
+        mode: trees.mode === "auto" ? "auto" : trees.mode,
         ignore_mode: Array.isArray(trees.ignore_mode)
-          ? trees.ignore_mode.join(",")
+          ? trees.ignore_mode
           : "",
         construct_tree_method:
-          trees.mode === "manual" ? trees.construct_method : "distance",
+          trees.mode === "manual" ? trees.algorithm_reconstruct : "nj",
         align_method:
           trees.mode === "manual" ? trees.alignment_method : "mafft",
         num_threads: trees.num_threads || 1,
@@ -675,6 +675,18 @@ const PipelineConfigurator = () => {
                   <Select>
                     <Option value="distance"> Distances</Option>
                     <Option value="parsimony">Parsimony</Option>
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item
+                  name={["trees", "algorithm_reconstruct"]}
+                  label="Algorithm for Reconstructing "
+                  initialValue="nj"
+                >
+                  <Select>
+                    <Option value="nj">Neighbor-Joining (NJ)</Option>
+                    <Option value="upgma">upgma</Option>
                   </Select>
                 </Form.Item>
               </Col>
@@ -953,11 +965,11 @@ const PipelineConfigurator = () => {
                   }}
                   style={{ marginBottom: 16, marginLeft: 8 }}
                 >
-                  Search NCBI
+                  Search NCBI (Beta Testing)
                 </Button>
 
                 <Modal
-                  title="Search Sequences in NCBI"
+                  title="Search Sequences in NCBI  (Beta Testing)"
                   open={ncbiModalVisible}
                   onCancel={() => setNcbiModalVisible(false)}
                   footer={null}
@@ -993,7 +1005,7 @@ const PipelineConfigurator = () => {
                           options={searchResults.map((species) => ({
                             value: species.scientific_name,
                             label: `${species.scientific_name} (${
-                              species.common_name || ""
+                              species.division || ""
                             })`,
                           }))}
                           onChange={(value) => {
@@ -1046,7 +1058,7 @@ const PipelineConfigurator = () => {
                           }
                         }}
                         prefix={<MailOutlined />}
-                        placeholder="your.email@example.com"
+                        placeholder="email@example.com"
                       />
                     </Form.Item>
 
@@ -1133,6 +1145,7 @@ const PipelineConfigurator = () => {
                             max={1.0}
                             step={0.01}
                             marks={{
+                              0.8: "0.8",
                               0.9: "0.9",
                               0.95: "0.95",
                               0.99: "0.99",

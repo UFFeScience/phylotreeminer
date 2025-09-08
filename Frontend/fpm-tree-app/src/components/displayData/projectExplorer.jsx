@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   Select,
   List,
@@ -12,13 +18,20 @@ import {
   Empty,
   Button,
   Tag,
+  message,
 } from "antd";
 import CompareIcon from "@mui/icons-material/Compare";
-import { FolderOutlined, FileOutlined, HomeOutlined } from "@ant-design/icons";
+import {
+  FolderOutlined,
+  FileOutlined,
+  HomeOutlined,
+  BarChartOutlined,
+} from "@ant-design/icons";
 import MSAViewer from "../../components/analysis/MSAViewer";
 import PhylogeneticTreeViewer from "../../components/analysis/PhylogeneticTreeViewer";
 import TableView from "../../components/common/TableView";
 import TreeComparisonViewer from "../analysis/TreeComparisonViewer";
+import TreePatternAnalysis from "../analysis/TreePatternAnalysis";
 
 const { Option } = Select;
 
@@ -37,14 +50,19 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   const [modalContentType, setModalContentType] = useState(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
 
+  const [loadingItemPath, setLoadingItemPath] = useState(null);
+  const [loadingItems, setLoadingItems] = useState(new Set());
+
   const [selectedItems, setSelectedItems] = useState([]);
   const [comparisonMode, setComparisonMode] = useState(false);
 
   const [metadata, setMetadata] = useState("");
   const [isComparisonAllowed, setIsComparisonAllowed] = useState(false);
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const API_BASE_URL = "http://localhost:8000";
+  const directoryContentRef = useRef([]);
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -67,17 +85,19 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   }, [initialProjectName]);
 
   const fetchDirectoryContent = useCallback(async (path) => {
+    if (directoryContentRef.current.path === path) return;
+
     setIsLoading(true);
     setError(null);
     try {
       const response = await fetch(
         `${API_BASE_URL}/browse?path=${encodeURIComponent(path)}`
       );
-      if (!response.ok)
-        throw new Error(
-          (await response.json()).detail || "Failed to fetch content."
-        );
-      setDirectoryContent(await response.json());
+      if (!response.ok) throw new Error("Failed to fetch content.");
+
+      const data = await response.json();
+      directoryContentRef.current = { path, data };
+      setDirectoryContent(data);
     } catch (err) {
       setError(err.message);
       setDirectoryContent([]);
@@ -87,20 +107,21 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   }, []);
 
   const fetchMetadata = useCallback(async (projectName) => {
+    if (!projectName) return;
+
     setIsLoading(true);
     setError(null);
     try {
       const response = await fetch(
         `${API_BASE_URL}/api/tree/metadata/${projectName}`
       );
-      if (!response.ok)
-        throw new Error(
-          (await response.json()).detail || "Failed to fetch content."
-        );
-      setMetadata(await response.json());
+      if (!response.ok) throw new Error("Failed to fetch metadata.");
+
+      const data = await response.json();
+      setMetadata(data);
     } catch (err) {
       setError(err.message);
-      setMetadata([]);
+      setMetadata({});
     } finally {
       setIsLoading(false);
     }
@@ -128,8 +149,21 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   };
 
   const handleCloseModal = () => {
+    setShowAnalysis(false);
+
     setIsModalVisible(false);
     setModalItem(null);
+
+    if (loadingItemPath) {
+      message.destroy(loadingItemPath);
+      setLoadingItemPath(null);
+    }
+    loadingItems.forEach((path) => message.destroy(path));
+    setLoadingItems(new Set());
+  };
+
+  const isItemLoading = (itemPath) => {
+    return loadingItems.has(itemPath);
   };
 
   const handleItemClick = async (item) => {
@@ -159,6 +193,15 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
       return;
     }
 
+    setLoadingItemPath(item.path);
+    setLoadingItems((prev) => new Set(prev).add(item.path));
+
+    message.loading({
+      content: `Loading ${item.name}...`,
+      key: item.path,
+      duration: 0,
+    });
+
     setModalItem(item);
     setIsModalVisible(true);
     setIsModalLoading(true);
@@ -181,12 +224,30 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         setModalContent(data.content);
         setModalContentType(data.type);
       }
+
+      message.success({
+        content: `${item.name} loaded successfully!`,
+        key: item.path,
+        duration: 2,
+      });
     } catch (error) {
       console.error("Falha ao carregar conteúdo do arquivo:", error);
       setModalContent(null);
       setModalContentType("error");
+
+      message.error({
+        content: `Failed to load ${item.name}`,
+        key: item.path,
+        duration: 3,
+      });
     } finally {
       setIsModalLoading(false);
+      setLoadingItemPath(null);
+      setLoadingItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(item.path);
+        return newSet;
+      });
     }
   };
 
@@ -195,12 +256,19 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     setSelectedItems([]);
   };
 
+  const togglePatternAnalysis = () => {
+    setShowAnalysis(!showAnalysis);
+    setIsModalVisible(true);
+    setModalContentType("patternAnalysis");
+    setIsModalLoading(false);
+  };
+
   const handleCompareSelected = async () => {
     if (selectedItems.length !== 2) return;
 
     setModalItem(null);
     setIsModalVisible(true);
-    setIsComparisonLoading(true); 
+    setIsComparisonLoading(true);
     setModalContent(null);
     setModalContentType("comparison");
 
@@ -313,37 +381,17 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     ];
   };
 
-  const renderModalContent = () => {
-    if (isModalLoading) {
-      return (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "60vh",
-          }}
-        >
-          <Spin size="large" />
-        </div>
-      );
-    }
-    if (!modalContent) {
-      return (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            minHeight: "60vh",
-          }}
-        >
-          <Empty description="No content to display." />
-        </div>
-      );
-    }
+  const breadcrumbItems = useMemo(
+    () => generateBreadcrumbItems(),
+    [currentPath, selectedProject]
+  );
 
-    const viewerContainerStyle = { height: "75vh", width: "100%", overflow: 'auto' };
+  const renderModalContent = () => {
+    const viewerContainerStyle = {
+      height: "75vh",
+      width: "100%",
+      overflow: "auto",
+    };
 
     switch (modalContentType) {
       case "comparison":
@@ -358,6 +406,12 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
               metadata={metadata}
               isLoading={isComparisonLoading}
             />
+          </div>
+        );
+      case "patternAnalysis":
+        return (
+          <div style={{...viewerContainerStyle, marginTop: 16}}>
+            <TreePatternAnalysis projectName={selectedProject} />
           </div>
         );
       case "newick":
@@ -399,7 +453,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
               style={{
                 whiteSpace: "pre-wrap",
                 wordBreak: "break-word",
-                fontFamily: "sans-serif", 
+                fontFamily: "sans-serif",
               }}
             >
               {modalContent}
@@ -408,6 +462,67 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         );
     }
   };
+
+  const renderItem = useCallback(
+    (item) => {
+      const isSelected = selectedItems.some(
+        (selected) => selected.path === item.path
+      );
+      const isTree = isTreeFile(item);
+      const isLoading = isItemLoading(item.path);
+
+      return (
+        <List.Item
+          onClick={() => !isLoading && handleItemClick(item)}
+          style={{
+            cursor: isLoading ? "not-allowed" : "pointer",
+            padding: "8px",
+            backgroundColor: isSelected
+              ? "#e6f7ff"
+              : isTree && comparisonMode
+              ? "#f6ffed"
+              : "transparent",
+            border: isSelected
+              ? "2px solid #1890ff"
+              : isTree && comparisonMode
+              ? "1px solid #b7eb8f"
+              : "1px solid #f0f0f0",
+            marginBottom: "4px",
+            borderRadius: "6px",
+          }}
+        >
+          <List.Item.Meta
+            avatar={
+              isLoading ? (
+                <Spin size="small" />
+              ) : item.type === "directory" ? (
+                <FolderOutlined />
+              ) : isTree && comparisonMode ? (
+                <FileOutlined style={{ color: "#52c41a" }} />
+              ) : (
+                <FileOutlined />
+              )
+            }
+            title={
+              <Space>
+                <Typography.Text
+                  ellipsis
+                  style={{ opacity: isLoading ? 0.7 : 1 }}
+                >
+                  {item.name}
+                  {isLoading && " (Loading...)"}
+                </Typography.Text>
+                {isSelected && <Tag color="blue">Selected</Tag>}
+                {isLoading && <Tag color="processing">Loading</Tag>}
+              </Space>
+            }
+            description={isLoading ? "Loading content, please wait..." : null}
+          />
+        </List.Item>
+      );
+    },
+    [selectedItems, comparisonMode]
+  );
 
   return (
     <Card>
@@ -444,19 +559,28 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
                     <HomeOutlined />
                     <span style={{ marginLeft: "8px" }}>Projects</span>
                   </Breadcrumb.Item>
-                  {generateBreadcrumbItems()}
+                  {breadcrumbItems}
                 </Breadcrumb>
 
                 {isComparisonAllowed && (
-                  <Button
-                    icon={<CompareIcon />}
-                    type={comparisonMode ? "primary" : "default"}
-                    onClick={toggleComparisonMode}
-                  >
-                    {comparisonMode
-                      ? "Exit Comparison Mode"
-                      : "Compare Trees"}
-                  </Button>
+                  <Space>
+                    <Button
+                      icon={<CompareIcon />}
+                      type={comparisonMode ? "primary" : "default"}
+                      onClick={toggleComparisonMode}
+                    >
+                      {comparisonMode
+                        ? "Exit Comparison Mode"
+                        : "Compare Trees"}
+                    </Button>
+                    <Button
+                      icon={<BarChartOutlined />}
+                      type={showAnalysis ? "primary" : "default"}
+                      onClick={togglePatternAnalysis}
+                    >
+                      {showAnalysis ? "Hide Analysis" : "Deep Analysis"}
+                    </Button>
+                  </Space>
                 )}
               </Space>
             </Card>
@@ -488,58 +612,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
               loading={isLoading}
               itemLayout="horizontal"
               dataSource={directoryContent}
-              renderItem={(item) => {
-                const isSelected = selectedItems.some(
-                  (selected) => selected.path === item.path
-                );
-                const isTree = isTreeFile(item);
-
-                return (
-                  <List.Item
-                    onClick={() => handleItemClick(item)}
-                    style={{
-                      cursor:
-                        // item.type === "directory" || (isTree && comparisonMode)
-                        //   ? "pointer"
-                        //   : "default",
-                        "pointer",
-                      padding: "8px",
-                      backgroundColor: isSelected
-                        ? "#e6f7ff"
-                        : isTree && comparisonMode
-                        ? "#f6ffed"
-                        : "transparent",
-                      border: isSelected
-                        ? "2px solid #1890ff"
-                        : isTree && comparisonMode
-                        ? "1px solid #b7eb8f"
-                        : "1px solid #f0f0f0",
-                      marginBottom: "4px",
-                      borderRadius: "6px",
-                    }}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        item.type === "directory" ? (
-                          <FolderOutlined />
-                        ) : isTree && comparisonMode ? (
-                          <FileOutlined style={{ color: "#52c41a" }} />
-                        ) : (
-                          <FileOutlined />
-                        )
-                      }
-                      title={
-                        <Space>
-                          <Typography.Text ellipsis>
-                            {item.name}
-                          </Typography.Text>
-                          {isSelected && <Tag color="blue">Selected</Tag>}
-                        </Space>
-                      }
-                    />
-                  </List.Item>
-                );
-              }}
+              renderItem={renderItem}
               locale={{ emptyText: "This folder is empty." }}
               style={{ maxHeight: "50vh", overflow: "auto" }}
             />
@@ -560,7 +633,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         footer={null}
         width="90vw"
         style={{ top: 20 }}
-        destroyOnClose
+        // destroyOnClose
       >
         {renderModalContent()}
       </Modal>

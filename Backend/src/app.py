@@ -4,8 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Literal, Optional, Any, Tuple
-import os, datetime, mimetypes, asyncio, re, psutil, json
+import os, datetime, mimetypes, asyncio, re, psutil, json, random
 import glob, tempfile, zipfile, shutil
+import pandas as pd
+from collections import defaultdict, Counter
 
 from Bio import Phylo, SeqIO, Entrez
 from io import StringIO, BytesIO
@@ -115,6 +117,18 @@ class NCBISearchRequest(BaseModel):
     query: str = Field(..., description="Termo para busca de espécies")
     retmax: int = Field(10, description="Número máximo de resultados")
 
+class TreeAnalysisRequest(BaseModel):
+    min_support: float = Field(0.1, description="Suporte mínimo para considerar padrões")
+    max_support: float = Field(0.9, description="Suporte máximo para considerar padrões quase-invariantes")
+    min_pattern_size: int = Field(2, description="Tamanho mínimo dos padrões")
+    max_pattern_size: int = Field(10, description="Tamanho máximo dos padrões")
+
+class PatternAnalysisResult(BaseModel):
+    unique_signatures: List[Dict]
+    quasi_invariant_patterns: List[Dict]
+    pattern_statistics: Dict
+    tree_coverage: Dict
+    
 #  WebSocket para Monitoramento de Progresso 
 class ProgressConnectionManager:
     """Gerencia as conexões de WebSocket por projeto."""
@@ -224,10 +238,10 @@ async def stream_workflow_output(project_name: str, process: asyncio.subprocess.
     }
     if return_code == 0:
         final_message["type"] = "workflow_complete"
-        final_message["message"] = f"Workflow do projeto {project_name} foi concluído com sucesso."
+        final_message["message"] = f"Project workflow {project_name} completed successfully."
     else:
         final_message["type"] = "workflow_failed"
-        final_message["message"] = f"Workflow do projeto {project_name} falhou com código de saída {return_code}."
+        final_message["message"] = f"Project workflow {project_name} failed with exit code {return_code}."
     
     await manager.broadcast(project_name, final_message)
     
@@ -254,11 +268,11 @@ async def run_workflow(project_name: str, workflow_config: WorkflowConfig):
     """
     project_path = os.path.abspath(os.path.join(PROJECTS_ROOT, project_name))
     print(project_path)
-    if not project_path.startswith(PROJECTS_ROOT) or not os.path.isdir(project_path):
-        raise HTTPException(status_code=404, detail="Projeto não encontrado.")
+    # if not project_path.startswith(PROJECTS_ROOT) or not os.path.isdir(project_path):
+    #     raise HTTPException(status_code=404, detail="Projeto não encontrado.")
 
-    if project_name in running_workflows:
-        raise HTTPException(status_code=409, detail=f"O workflow para o projeto '{project_name}' já está em execução.")
+    # if project_name in running_workflows:
+    #     raise HTTPException(status_code=409, detail=f"O workflow para o projeto '{project_name}' já está em execução.")
 
     config_dict = workflow_config.configs
     data_input_folder = config_dict['tree_config']['input_path']
@@ -428,16 +442,16 @@ async def get_tree_metadata(project_name: str):
     metadata_path = os.path.join(project_path,'out','outputs',"metadata.json")
     
     if not os.path.exists(metadata_path):
-        raise HTTPException(status_code=404, detail="Arquivo de metadados não encontrado")
+        raise HTTPException(status_code=404, detail="Metadata file not found")
     
     try:
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
-        
-        return metadata
+
+        return list(metadata[0])
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao ler metadados: {e}")
+        raise HTTPException(status_code=500, detail=f"Error reading metadata: {e}")
 
 @app.get("/dataFolders", response_model=List[Project])
 async def get_data_folders():
@@ -691,65 +705,54 @@ async def get_projects_details(project_names: List[str]):
 
 def extract_trees_from_nexus(nexus_content: str, taxon_namespace: TaxonNamespace = None) -> List[Tree]:
     """
-    Extrai árvores do conteúdo Nexus usando um taxon namespace compartilhado
+    Extrai árvores do conteúdo Nexus usando processamento em memória
     """
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.nexus', delete=False) as temp_file:
-            temp_file.write(nexus_content)
-            temp_file.flush()
-            
-            if taxon_namespace:
-                trees = TreeList.get_from_path(
-                    temp_file.name, 
-                    'nexus', 
-                    taxon_namespace=taxon_namespace,
-                    rooting='force-unrooted'
-                )
-            else:
-                trees = TreeList.get_from_path(
-                    temp_file.name, 
-                    'nexus', 
-                    rooting='force-unrooted'
-                )
-            
+        if taxon_namespace:
+            trees = TreeList.get_from_string(
+                nexus_content, 
+                'nexus', 
+                taxon_namespace=taxon_namespace,
+                rooting='force-unrooted'
+            )
+        else:
+            trees = TreeList.get_from_string(
+                nexus_content, 
+                'nexus', 
+                rooting='force-unrooted'
+            )
+        
         return trees
         
     except Exception as e:
         raise ValueError(f"Failed to parse Nexus content: {str(e)}")
-    finally:
-        try:
-            import os
-            os.unlink(temp_file.name)
-        except:
-            pass
 
 def align_taxon_namespaces(tree1: Tree, tree2: Tree) -> Tuple[Tree, Tree]:
     """
-    Alinha os taxon namespaces das duas árvores
+    Alinha os taxon namespaces das duas árvores preservando todas as informações
     """
-    unified_namespace = TaxonNamespace()
+    unified_ns = TaxonNamespace()
     
-    all_taxa = set()
+    taxon_map = {}
     for tree in [tree1, tree2]:
         for taxon in tree.taxon_namespace:
-            all_taxa.add(taxon.label)
+            if taxon.label not in taxon_map:
+                new_taxon = unified_ns.new_taxon(label=taxon.label)
+                taxon_map[taxon.label] = new_taxon
     
-    for taxon_label in sorted(all_taxa):
-        unified_namespace.new_taxon(label=taxon_label)
+    # Clonar árvores com novo namespace
+    tree1_aligned = tree1.__class__(tree1)
+    tree2_aligned = tree2.__class__(tree2)
     
-    tree1_aligned = Tree.get_from_string(
-        tree1.as_string('newick'),
-        'newick',
-        taxon_namespace=unified_namespace,
-        rooting='force-unrooted'
-    )
+    # Substituir taxon namespace
+    tree1_aligned.taxon_namespace = unified_ns
+    tree2_aligned.taxon_namespace = unified_ns
     
-    tree2_aligned = Tree.get_from_string(
-        tree2.as_string('newick'),
-        'newick',
-        taxon_namespace=unified_namespace,
-        rooting='force-unrooted'
-    )
+    # Mapear todos os nós para os novos táxons
+    for tree in [tree1_aligned, tree2_aligned]:
+        for node in tree.leaf_node_iter():
+            if node.taxon is not None and node.taxon.label in taxon_map:
+                node.taxon = taxon_map[node.taxon.label]
     
     return tree1_aligned, tree2_aligned
 
@@ -757,51 +760,137 @@ def calculate_rf_distance(tree1: Tree, tree2: Tree) -> int:
     """
     Calcula a distância Robinson-Foulds
     """
+    tree1.encode_bipartitions()
+    tree2.encode_bipartitions()
     return treecompare.symmetric_difference(tree1, tree2)
+
+def make_tree_binary(tree: Tree) -> Tree:
+    """
+    Resolve politomias aleatoriamente para tornar a árvore binária
+    Retorna uma nova árvore com estrutura binária
+    """
+    new_tree = tree.__class__(tree)
+    
+    for node in list(new_tree.internal_nodes()):
+        children = node.child_nodes()
+        if len(children) > 2:
+            random.shuffle(children)
+            
+            while len(children) > 1:
+                child1 = children.pop(0)
+                child2 = children.pop(0)
+                
+                new_node = new_tree.node_factory()
+                new_node.add_child(child1)
+                new_node.add_child(child2)
+                
+                new_node.edge.length = 1e-6
+                
+                children.append(new_node)
+            
+            node.set_children(children)
+    
+    return new_tree
 
 def calculate_quartet_distance(tree1: Tree, tree2: Tree) -> int:
     """
-    Calcula a distância Quartet entre duas árvores
+    Calcula a distância Quartet corretamente para árvores não binárias
     """
-    try:
-        return treecompare.quartet_distance(tree1, tree2)
-    except Exception as e:
-        print(f"Quartet distance calculation failed: {e}")
-        return approximate_quartet_distance(tree1, tree2)
+    n_taxa = len(tree1.taxon_namespace)
+    
+    if not get_tree_statistics(tree1)['is_binary'] or not get_tree_statistics(tree2)['is_binary']:
+        tree1_binary = make_tree_binary(tree1)
+        tree2_binary = make_tree_binary(tree2)
+        
+        #TODO: Tratar caso de arvores nao-binarias
+        return -1
+    
+    if n_taxa <= 25:
+        try:
+            return treecompare.quartet_distance(tree1, tree2)
+        except:
+            return exact_quartet_distance(tree1, tree2)
+    else:
+        return approximate_quartet_distance(tree1, tree2, sample_size=min(1000, n_taxa * 10))
 
-def approximate_quartet_distance(tree1: Tree, tree2: Tree) -> int:
+def exact_quartet_distance(tree1: Tree, tree2: Tree) -> int:
     """
-    Calcula uma aproximação da distância Quartet
+    Calcula a distância Quartet exata para árvores pequenas
     """
     taxa = sorted([taxon.label for taxon in tree1.taxon_namespace])
     if len(taxa) < 4:
         return 0
     
     quartet_distance = 0
-    sample_size = min(500, len(taxa) * 10)  
+    from itertools import combinations
+    all_quartets = list(combinations(taxa, 4))
     
-    for _ in range(sample_size):
+    for quartet_taxa in all_quartets:
         try:
-            sampled_taxa = np.random.choice(taxa, 4, replace=False)
-            quartet_taxa = set(sampled_taxa)
-            
-            quartet1 = tree1.quartet(*quartet_taxa)
-            quartet2 = tree2.quartet(*quartet_taxa)
+            quartet_set = set(quartet_taxa)
+            quartet1 = tree1.quartet(*quartet_set)
+            quartet2 = tree2.quartet(*quartet_set)
             
             if quartet1 != quartet2:
                 quartet_distance += 1
-                
         except Exception:
             quartet_distance += 1
     
-    total_quartets = len(taxa) * (len(taxa)-1) * (len(taxa)-2) * (len(taxa)-3) // 24
+    return quartet_distance
+
+def approximate_quartet_distance(tree1: Tree, tree2: Tree, sample_size: int = 1000) -> int:
+    """
+    Calcula uma aproximação da distância Quartet com amostragem mais inteligente
+    """
+    taxa = sorted([taxon.label for taxon in tree1.taxon_namespace])
+    if len(taxa) < 4:
+        return 0
+    
+    quartet_distance = 0
+    n_taxa = len(taxa)
+    
+    for _ in range(sample_size):
+        try:
+            strata_size = max(1, n_taxa // 4)
+            strata_indices = np.random.choice(range(n_taxa), strata_size, replace=False)
+            strata_taxa = [taxa[i] for i in strata_indices]
+            
+            remaining_taxa = list(set(taxa) - set(strata_taxa))
+            if len(remaining_taxa) < 4 - len(strata_taxa):
+                continue
+                
+            additional_taxa = np.random.choice(remaining_taxa, 4 - len(strata_taxa), replace=False)
+            sampled_taxa = list(strata_taxa) + list(additional_taxa)
+            
+            quartet_set = set(sampled_taxa)
+            quartet1 = tree1.quartet(*quartet_set)
+            quartet2 = tree2.quartet(*quartet_set)
+            
+            if quartet1 != quartet2:
+                quartet_distance += 1
+        except Exception as e:
+            if "quartet" in str(e).lower() or "taxon" in str(e).lower():
+                quartet_distance += 1
+    
+    total_quartets = n_taxa * (n_taxa-1) * (n_taxa-2) * (n_taxa-3) // 24
     if total_quartets > 0 and sample_size > 0:
         return int((quartet_distance / sample_size) * total_quartets)
     return 0
 
+def count_non_trivial_bipartitions(tree: Tree) -> int:
+    """
+    Conta o número de bipartições não triviais em uma árvore
+    """
+    tree.encode_bipartitions()
+    count = 0
+    for edge in tree.postorder_edge_iter():
+        if edge.bipartition and not edge.bipartition.is_trivial():
+            count += 1
+    return count
+
 def find_common_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
     """
-    Encontra clados comuns entre duas árvores
+    Encontra clados comuns entre duas árvores usando comparação de bipartições
     """
     common_clades = 0
     common_clade_descriptions = []
@@ -810,17 +899,14 @@ def find_common_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
     tree2.encode_bipartitions()
     
     bipartitions1 = set()
-    bipartitions2 = set()
-    
     for edge in tree1.postorder_edge_iter():
         if edge.bipartition and not edge.bipartition.is_trivial():
-            bipartition_str = edge.bipartition.split_bitmask
-            bipartitions1.add(bipartition_str)
+            bipartitions1.add(edge.bipartition.split_bitmask)
     
+    bipartitions2 = set()
     for edge in tree2.postorder_edge_iter():
         if edge.bipartition and not edge.bipartition.is_trivial():
-            bipartition_str = edge.bipartition.split_bitmask
-            bipartitions2.add(bipartition_str)
+            bipartitions2.add(edge.bipartition.split_bitmask)
     
     common_bipartitions = bipartitions1.intersection(bipartitions2)
     common_clades = len(common_bipartitions)
@@ -853,33 +939,68 @@ def find_conflicting_clades(tree1: Tree, tree2: Tree) -> Tuple[int, List[str]]:
 
 def get_tree_statistics(tree: Tree) -> Dict:
     """
-    Obtém estatísticas detalhadas de uma árvore
+    Obtém estatísticas detalhadas de uma árvore com detecção precisa de binariedade
     """
     nodes = 0
     leaves = 0
     internal_nodes = 0
-    
+    politomy_count = 0
+    non_binary_nodes = []
+
     for node in tree:
         nodes += 1
         if node.is_leaf():
             leaves += 1
         else:
             internal_nodes += 1
-    
+            if len(node.child_nodes()) > 2:
+                politomy_count += 1
+                non_binary_nodes.append(node.label)
+
     branch_lengths = []
     for edge in tree.postorder_edge_iter():
         if edge.length is not None:
             branch_lengths.append(edge.length)
-    
+
     avg_branch_length = sum(branch_lengths) / len(branch_lengths) if branch_lengths else 0
-    
+
     return {
         'total_nodes': nodes,
         'leaf_nodes': leaves,
         'internal_nodes': internal_nodes,
         'avg_branch_length': round(avg_branch_length, 6),
-        'tree_length': round(tree.length(), 6)
+        'tree_length': round(tree.length(), 6),
+        'is_binary': politomy_count == 0,
+        'politomy_count': politomy_count,
+        'non_binary_nodes': non_binary_nodes
     }
+
+def calculate_similarity(tree1: Tree, tree2: Tree, common_clades: int) -> float:
+    """
+    Calcula score de similaridade corretamente para árvores não binárias
+    """
+    tree1_bipartitions = count_non_trivial_bipartitions(tree1)
+    tree2_bipartitions = count_non_trivial_bipartitions(tree2)
+    
+    min_bipartitions = min(tree1_bipartitions, tree2_bipartitions)
+    
+    if min_bipartitions == 0:
+        return 0.0
+    
+    return (common_clades / min_bipartitions) * 100
+
+
+def check_consistency(rf_distance, quartet_distance, num_taxa):
+    max_rf = 2 * (num_taxa - 3)
+    max_quartet = num_taxa * (num_taxa-1) * (num_taxa-2) * (num_taxa-3) // 24
+    
+    normalized_rf = rf_distance / max_rf
+    normalized_quartet = quartet_distance / max_quartet
+    
+    if abs(normalized_rf - normalized_quartet) > 0.5:
+        return "Inconsistent results: RF and Quartet metrics show significant discrepancy"
+    else:
+        return "Results are consistent"
 
 @app.post("/api/tree/compare")
 async def compare_trees(tree_data: dict):
@@ -920,8 +1041,7 @@ async def compare_trees(tree_data: dict):
         tree1_stats = get_tree_statistics(tree1)
         tree2_stats = get_tree_statistics(tree2)
         
-        total_possible_clades = max((tree1_stats['leaf_nodes'] - 3), 1)
-        similarity_score = (common_clades / total_possible_clades) * 100 if total_possible_clades > 0 else 0
+        similarity_score = calculate_similarity(tree1, tree2, common_clades)
         
         return {
             'rf_distance': rf_distance,
@@ -933,6 +1053,7 @@ async def compare_trees(tree_data: dict):
             'tree2_stats': tree2_stats,
             'taxon_count': len(tree1.taxon_namespace),
             'comparison_notes': {
+                'consistency': check_consistency(rf_distance,quartet_distance,len(tree1.taxon_namespace)),
                 'rf_interpretation': interpret_rf_distance(rf_distance, tree1_stats['leaf_nodes']),
                 'quartet_interpretation': interpret_quartet_distance(quartet_distance, tree1_stats['leaf_nodes']),
                 'similarity_interpretation': interpret_similarity(similarity_score)
@@ -944,51 +1065,233 @@ async def compare_trees(tree_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error comparing trees: {str(e)}")
 
+
 def interpret_rf_distance(rf_distance: int, num_taxa: int) -> str:
-    """Interpreta a distância RF"""
+    """Interpret the RF distance"""
     max_rf = 2 * (num_taxa - 3) if num_taxa > 3 else 0
     if max_rf == 0:
-        return "Árvores idênticas ou muito pequenas para comparação RF"
+        return "Identical trees or too small for RF comparison"
     
     normalized_rf = rf_distance / max_rf
     if normalized_rf < 0.1:
-        return "Árvores muito similares"
+        return "Trees are very similar"
     elif normalized_rf < 0.3:
-        return "Árvores similares com pequenas diferenças"
+        return "Trees are similar with small differences"
     elif normalized_rf < 0.6:
-        return "Árvores moderadamente diferentes"
+        return "Trees are moderately different"
     else:
-        return "Árvores muito diferentes"
+        return "Trees are very different"
+
 
 def interpret_quartet_distance(qd: int, num_taxa: int) -> str:
-    """Interpreta a distância Quartet"""
+    """Interpret the Quartet distance"""
     max_qd = num_taxa * (num_taxa-1) * (num_taxa-2) * (num_taxa-3) // 24 if num_taxa >= 4 else 0
     if max_qd == 0:
-        return "Não aplicável (menos de 4 táxons)"
+        return "Not applicable (fewer than 4 taxa)"
     
     normalized_qd = qd / max_qd
-    if normalized_qd < 0.1:
-        return "Baixa discordância de quartetos"
+    if normalized_qd < 0 :
+        return "Non-binary trees detected"
+    elif normalized_qd < 0.1:
+        return "Low quartet discordance"
     elif normalized_qd < 0.3:
-        return "Discordância moderada de quartetos"
+        return "Moderate quartet discordance"
     elif normalized_qd < 0.6:
-        return "Alta discordância de quartetos"
+        return "High quartet discordance"
     else:
-        return "Discordância muito alta de quartetos"
+        return "Very high quartet discordance"
+
 
 def interpret_similarity(similarity: float) -> str:
-    """Interpreta o score de similaridade"""
+    """Interpret the similarity score"""
     if similarity > 90:
-        return "Árvores quase idênticas"
+        return "Trees are nearly identical"
     elif similarity > 70:
-        return "Árvores muito similares"
+        return "Trees are very similar"
     elif similarity > 50:
-        return "Árvores moderadamente similares"
+        return "Trees are moderately similar"
     elif similarity > 30:
-        return "Árvores com similaridade limitada"
+        return "Trees have limited similarity"
     else:
-        return "Árvores muito diferentes"
+        return "Trees are very different"
+
+
+@app.get("/api/tree/pattern-analysis/{project_name}")
+async def analyze_tree_patterns(
+    project_name: str,
+    min_support: float = Query(0.3, ge=0.0, le=1.0),
+    max_support: float = Query(0.6, ge=0.0, le=1.0),
+    min_pattern_size: int = Query(2, ge=1),
+    max_pattern_size: int = Query(100, ge=1)
+):
+    """
+    Analisa padrões de assinatura única e padrões quase-invariantes em todas as árvores de um projeto.
+    """
+    try:
+        project_path = os.path.join(PROJECTS_ROOT, project_name)
+        
+        fpmax_path = os.path.join(project_path, "out", "outputs", "tree_dataset_all_results_fpmax.csv")
+        metadata_path = os.path.join(project_path, "out", "outputs", "metadata.json")
+        
+        if not os.path.exists(fpmax_path):
+            raise HTTPException(status_code=404, detail="Arquivo FPMax não encontrado")
+        if not os.path.exists(metadata_path):
+            raise HTTPException(status_code=404, detail="Arquivo de metadados não encontrado")
+        
+        fpmax_df = pd.read_csv(fpmax_path)
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+        
+        analysis_result = analyze_patterns(
+            fpmax_df, metadata[0], min_support, max_support, 
+            min_pattern_size, max_pattern_size
+        )
+        
+        return analysis_result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na análise: {str(e)}")
+
+def analyze_patterns(fpmax_df, metadata, min_support, max_support, min_size, max_size):
+    """
+    Analisa padrões do DataFrame FPMax e metadados.
+    """
+    def parse_frozenset(fset_str):
+        try:
+            cleaned = fset_str.replace('frozenset({', '').replace('})', '')
+            items = cleaned.split(', ')
+            return set(int(item) for item in items if item.strip())
+        except:
+            return set()
     
+    hash_to_subtree_info = {}
+    
+    for tree_data in metadata:
+        if isinstance(tree_data, dict):
+            for tree_name, subtrees in tree_data.items():
+                
+                for subtree_name, subtree_info in subtrees.items():
+                    hash_to_subtree_info[subtree_info['List_terminals_hash']] = {
+                        "tree_name": tree_name,
+                        "subtree_name": subtree_name,
+                        "nodes": {}
+                    }
+                    
+                    get_newick = lambda h: next((d["newick"] for d in  subtree_info['data_terminals'] if d["terminal_hash"] == h), None)
+                    for terminal_hash in subtree_info['Terminals']:
+                        hash_to_subtree_info[subtree_info['List_terminals_hash']]['nodes'][terminal_hash] = get_newick(terminal_hash)
+    
+    
+    patterns = []
+    for _, row in fpmax_df.iterrows():
+        try:
+            itemset = parse_frozenset(row['itemsets'])
+            support = row['support']
+            
+            if min_size <= len(itemset) <= max_size and min_support <= support <= max_support:
+                patterns.append({
+                    'itemset': itemset,
+                    'support': support,
+                    'size': len(itemset)
+                })
+        except Exception as e:
+            continue
+    
+    # Encontrar padrões únicos (baixo suporte)
+    unique_signatures = []
+    for pattern in patterns:
+        if pattern['support'] <= min_support:
+            node_names = []
+            for h in pattern['itemset']:
+                if h in hash_to_subtree_info:
+                    node_names.append(hash_to_subtree_info[h]["subtree_name"])
+                else:
+                    node_names.append(f"Unknown_{h}")
+            
+            unique_signatures.append({
+                'pattern': list(pattern['itemset']),
+                'node_names': node_names,
+                'support': pattern['support'],
+                'size': pattern['size']
+            })
+    
+    
+    # Encontrar padrões quase-invariantes (alto suporte)
+    quasi_invariant = []
+    for pattern in patterns:
+        if pattern['support'] >= max_support:
+            node_names = []
+            for h in pattern['itemset']:
+                if h in hash_to_subtree_info:
+                    node_names.append(hash_to_subtree_info[h]["subtree_name"])
+                else:
+                    node_names.append(f"Unknown_{h}")
+            
+            quasi_invariant.append({
+                'pattern': list(pattern['itemset']),
+                'node_names': node_names,
+                'support': pattern['support'],
+                'size': pattern['size']
+            })
+    
+    pattern_sizes = [p['size'] for p in patterns]
+    support_values = [p['support'] for p in patterns]
+    
+    statistics = {
+        'total_patterns': len(patterns),
+        'unique_signatures_count': len(unique_signatures),
+        'quasi_invariant_count': len(quasi_invariant),
+        'avg_pattern_size': sum(pattern_sizes) / len(pattern_sizes) if pattern_sizes else 0,
+        'avg_support': sum(support_values) / len(support_values) if support_values else 0,
+        'size_distribution': dict(Counter(pattern_sizes)),
+        'support_distribution': {
+            'low': len([s for s in support_values if s <= 0.3]),
+            'medium': len([s for s in support_values if 0.3 < s <= 0.7]),
+            'high': len([s for s in support_values if s > 0.7])
+        }
+    }
+    
+    tree_coverage = analyze_tree_coverage(patterns, metadata, hash_to_subtree_info)
+    
+    return {
+        'unique_signatures': unique_signatures,
+        'quasi_invariant_patterns': quasi_invariant,
+        'pattern_statistics': statistics,
+        'tree_coverage': tree_coverage
+    }
+
+def analyze_tree_coverage(patterns, metadata, hash_to_subtree_info):
+    """
+    Analisa a cobertura dos padrões nas árvores.
+    """
+    tree_patterns = defaultdict(list)
+
+    for pattern in patterns:
+        for h in pattern['itemset']:
+            if h in hash_to_subtree_info:
+                tree_info = hash_to_subtree_info[h]
+                tree_name = tree_info["tree_name"]
+                
+                tree_patterns[tree_name].append({
+                    'pattern_hash': h,
+                    'support': pattern['support'],
+                    'size': pattern['size']
+                })
+    
+    coverage_stats = {}
+    for tree_name, patterns in tree_patterns.items():
+        coverage_stats[tree_name] = {
+            'pattern_count': len(patterns),
+            'avg_support': sum(p['support'] for p in patterns) / len(patterns) if patterns else 0,
+            'size_range': {
+                'min': min(p['size'] for p in patterns) if patterns else 0,
+                'max': max(p['size'] for p in patterns) if patterns else 0,
+                'avg': sum(p['size'] for p in patterns) / len(patterns) if patterns else 0
+            }
+        }
+    
+    return coverage_stats
+
 #  WebSocket Endpoints 
 
 async def log_watcher(project_name: str):

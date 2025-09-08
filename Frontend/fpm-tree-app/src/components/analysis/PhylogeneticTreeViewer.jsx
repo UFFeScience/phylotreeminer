@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as d3 from "d3";
-import { Button, Card, Space, Alert, Select, Descriptions } from "antd";
+import {
+  Button,
+  Card,
+  Space,
+  Alert,
+  Select,
+  Descriptions,
+  Spin,
+  Empty,
+  Typography,
+} from "antd";
 import {
   DownloadOutlined,
   CloseOutlined,
@@ -9,6 +19,7 @@ import {
   GlobalOutlined,
   FieldTimeOutlined,
 } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 
 const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
   const svgRef = useRef(null);
@@ -29,6 +40,21 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
   const [showTimeline, setShowTimeline] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [hoveredNode, setHoveredNode] = useState(null);
+  const [treeTooLarge, setTreeTooLarge] = useState(false);
+  const navigate = useNavigate();
+  const [isRendering, setIsRendering] = useState(false);
+
+  useEffect(() => {
+    if (data && metadata) {
+      const dataSize =
+        typeof data === "string" ? data.length : JSON.stringify(data).length;
+      if (dataSize > 2500) {
+        setTreeTooLarge(true);
+        return;
+      }
+    }
+    setTreeTooLarge(false);
+  }, [data, metadata]);
 
   const flattenMetadata = (obj, prefix = "") => {
     let result = [];
@@ -95,11 +121,6 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
       setError("Erro ao analisar os dados da árvore: " + err.message);
     }
   }, [data, metadata, processMetadata]);
-
-  useEffect(() => {
-    if (!filteredTreeData || !svgRef.current) return;
-    renderTree();
-  }, [filteredTreeData, colorBy, collapsedNodes, selectedNode, metadata]);
 
   function findAllDataTerminals(obj) {
     let results = [];
@@ -270,10 +291,14 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
   };
 
   const renderTree = () => {
+    setIsRendering(true);
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
-    if (!filteredTreeData) return;
+    if (!filteredTreeData) {
+      setIsRendering(true);
+      return;
+    }
     if (!filteredTreeData.children || filteredTreeData.children.length === 0) {
       return;
     }
@@ -287,7 +312,10 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
     const nodeCount = countNodes(filteredTreeData);
     const isLargeTree = nodeCount > 100;
 
-    if(isLargeTree){ height *= 6; width *= 6};
+    if (isLargeTree) {
+      height *= 6;
+      width *= 6;
+    }
 
     const baseRadius = isLargeTree ? 3 : 6;
     const fontSize = isLargeTree ? "10px" : "12px";
@@ -402,25 +430,24 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
       });
 
     const shouldRenderDetail = (d, isLargeTree) => {
-  if (!isLargeTree) return true;
-  
-  // Mostrar detalhes apenas para nós próximos ao cursor ou selecionados
-  if (hoveredNode && isNodeInPath(d, hoveredNode)) return true;
-  if (selectedNode === d.data.name) return true;
-  if (d.depth <= 1) return true; // Primeiros níveis
-  
-  return false;
-};
+      if (!isLargeTree) return true;
 
+      if (hoveredNode && isNodeInPath(d, hoveredNode)) return true;
+      if (selectedNode === d.data.name) return true;
+      if (d.depth <= 1) return true;
+
+      return false;
+    };
 
     node
       .append("circle")
       .attr("r", (d) => {
         if (!shouldRenderDetail(d, isLargeTree)) return baseRadius - 1;
-    if (d.children && !collapsedNodes.has(d.data.name)) return baseRadius + 2;
-    if (selectedNode === d.data.name) return baseRadius + 4;
-    if (hoveredNode && isNodeInPath(d, hoveredNode)) return baseRadius + 2;
-    return baseRadius;
+        if (d.children && !collapsedNodes.has(d.data.name))
+          return baseRadius + 2;
+        if (selectedNode === d.data.name) return baseRadius + 4;
+        if (hoveredNode && isNodeInPath(d, hoveredNode)) return baseRadius + 2;
+        return baseRadius;
       })
       .attr("fill", (d) => {
         if (selectedNode === d.data.name) return "#ff4d4f";
@@ -495,7 +522,20 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
     if (colorBy && metadata) {
       renderLegend(g, width, height);
     }
+    setIsRendering(false);
   };
+
+  useEffect(() => {
+    if (!filteredTreeData || !svgRef.current) {
+      setIsRendering(false);
+      return;
+    }
+    renderTree();
+
+    return () => {
+      setIsRendering(false);
+    };
+  }, [filteredTreeData, colorBy, collapsedNodes, selectedNode, metadata]);
 
   const highlightPath = (node, active) => {
     const paths = getPathToRoot(node);
@@ -845,6 +885,34 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
     return <Alert message="Erro" description={error} type="error" showIcon />;
   }
 
+  if (treeTooLarge && metadata) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
+          padding: "20px",
+        }}
+      >
+        <Empty
+          description={
+            <span>
+              The tree is too large for iterative visualization. We apologize
+              for the inconvenience. <br />
+              We are developing support for large trees.
+            </span>
+          }
+        >
+          <Button type="primary" onClick={() => navigate("/analysis")}>
+            Try the analysis tool
+          </Button>
+        </Empty>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -855,6 +923,27 @@ const PhylogeneticTreeViewer = ({ data, onNodeClick, metadata = null }) => {
         display: "flex",
       }}
     >
+      {isRendering && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            zIndex: 10,
+            background: "rgba(255, 255, 255, 0.8)",
+            padding: "20px",
+            borderRadius: "8px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <Spin size="large" />
+          <Typography.Text>Rendering tree...</Typography.Text>
+        </div>
+      )}
       <div
         style={{
           position: "absolute",
