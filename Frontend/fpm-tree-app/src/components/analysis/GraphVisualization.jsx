@@ -261,23 +261,20 @@ const GraphVisualization = () => {
         networkOptions
       );
 
-      if (!networkInstance.current) {
-        networkInstance.current = new Network(
-          networkRef.current,
-          { nodes, edges },
-          networkOptions
-        );
-
-        networkInstance.current.on("click", (params) => {
-          if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0];
-            const nodeData = graphData.nodes.find((n) => n.id === nodeId);
-            setSelectedNode(nodeData);
-          } else {
-            setSelectedNode(null);
+      networkInstance.current.on("click", (params) => {
+        if (params.nodes.length > 0) {
+          const nodeId = params.nodes[0];
+          const nodeData = graphData.nodes.find((n) => n.id === nodeId);
+          if (nodeData) {
+            setSelectedNode({
+              ...nodeData,
+              properties: nodeData.properties || {},
+            });
           }
-        });
-      }
+        } else {
+          setSelectedNode(null);
+        }
+      });
 
       setTimeout(() => {
         if (networkInstance.current) {
@@ -573,7 +570,7 @@ const GraphVisualization = () => {
                   )}
                   <Paragraph strong>Properties:</Paragraph>
                   <JsonViewer
-                    data={selectedNode.properties}
+                    data={selectedNode.properties || {}}
                     style={{ maxHeight: "300px", overflow: "auto" }}
                   />
                 </Card>
