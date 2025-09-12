@@ -18,6 +18,7 @@ import {
   HomeOutlined,
   PartitionOutlined,
   SlidersOutlined,
+  DashboardOutlined,
 } from "@ant-design/icons";
 import { Link, useLocation, Outlet } from "react-router-dom";
 
@@ -60,7 +61,13 @@ function App() {
       key: "/doc",
       icon: <ReadOutlined />,
       label: <Link to="/doc">Documentation</Link>,
-      disabled: true
+      disabled: true,
+    },
+    {
+      key: "/systemHealth",
+      icon: <DashboardOutlined />,
+      label: <Link to="/systemHealth">System Health</Link>,
+      disabled: true,
     },
   ];
 
