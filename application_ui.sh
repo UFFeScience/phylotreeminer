@@ -220,8 +220,14 @@ cd Frontend/fpm-tree-app || { echo "ERROR: Frontend/fpm-tree-app directory not f
 
 # Check if npm is available
 if ! command -v npm &> /dev/null; then
-    echo "❌ ERROR: npm not found!"
-    echo "Install Node.js and npm first: https://nodejs.org/"
+    echo "📦 Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+fi
+
+# Check if npm is available
+if ! command -v npm &> /dev/null; then
+    echo "❌ ERROR: npm not found even after Node.js install!"
     cleanup
 fi
 
@@ -231,15 +237,43 @@ if [ ! -f "package.json" ]; then
     cleanup
 fi
 
-# Check if node_modules exists, otherwise install dependencies
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing frontend dependencies..."
-    if npm install; then
-        echo "✅ Frontend dependencies installed."
-    else
-        echo "⚠️  WARNING: Failed to install frontend dependencies"
-        echo "Try running manually: npm install"
-    fi
+# Remove node_modules and lock file to avoid conflicts
+echo "🧹 Cleaning old dependencies..."
+rm -rf node_modules package-lock.json
+
+# Install required frontend dependencies
+echo "📦 Installing frontend dependencies..."
+npm install react@18 react-dom@18 --save
+npm install vite @vitejs/plugin-react --save-dev
+npm install react-router-dom leaflet vis-data vis-network react-markdown --save
+npm install react-leaflet@4.2.1 --save
+
+# Reinstall all other project dependencies
+npm install
+
+# Ensure vite.config.js exists with react plugin
+if [ ! -f "vite.config.js" ]; then
+    echo "⚠️ vite.config.js not found, creating a basic one..."
+    cat > vite.config.js <<EOL
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})
+EOL
+fi
+
+# Ensure tsconfig.json/jsconfig.json has react-jsx
+if [ ! -f "tsconfig.json" ] && [ ! -f "jsconfig.json" ]; then
+    echo "⚠️ tsconfig.json/jsconfig.json not found, creating jsconfig.json..."
+    cat > jsconfig.json <<EOL
+{
+  "compilerOptions": {
+    "jsx": "react-jsx"
+  }
+}
+EOL
 fi
 
 echo "Starting frontend server..."
@@ -294,11 +328,6 @@ echo ""
 echo "=========================================="
 echo "🎉 Applications started!"
 echo ""
-echo "📍 URLs:"
-echo "   Frontend: $FRONTEND_URL"
-echo "   Backend:  $BACKEND_URL"
-echo "   API Docs: $BACKEND_URL/docs"
-echo ""
 echo "📋 Logs:"
 echo "   Backend:  tail -f $LOG_FILE_BACKEND"
 echo "   Frontend: tail -f $LOG_FILE_FRONTEND"
@@ -309,6 +338,12 @@ echo "   pkill -f 'npm run dev'"
 echo ""
 echo "🔍 To check if they are running:"
 echo "   ps aux | grep -E '(uvicorn|npm)'"
+echo ""
+echo "📍 URLs:"
+echo "   Frontend: $FRONTEND_URL"
+echo "   Backend:  $BACKEND_URL"
+echo "   API Docs: $BACKEND_URL/docs"
+echo ""
 echo "=========================================="
 
 # Function to check if processes are still running

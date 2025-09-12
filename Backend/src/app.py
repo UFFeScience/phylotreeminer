@@ -420,7 +420,7 @@ async def get_projects():
                     if first_match:
                         first_line_time = datetime.datetime.strptime(first_match.group(1), "%Y-%m-%d %H:%M:%S,%f")
                         
-                        if project_name in running_workflows and first_line_time.date() == today:
+                        if project_name in running_workflows:
                             duration_seconds = int((now - first_line_time).total_seconds())
                         else:
                             last_match = timestamp_regex.match(lines[-1])
@@ -1137,7 +1137,7 @@ async def analyze_tree_patterns(
     try:
         project_path = os.path.join(PROJECTS_ROOT, project_name)
         
-        fpmax_path = os.path.join(project_path, "out", "outputs", "tree_dataset_all_results_fpmax.csv")
+        fpmax_path = os.path.join(project_path, "out", "outputs", "all_results_fpmax.csv")
         metadata_path = os.path.join(project_path, "out", "outputs", "metadata.json")
         
         if not os.path.exists(fpmax_path):
@@ -1618,3 +1618,44 @@ async def websocket_performance_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         performance_clients.remove(websocket)
         print("Cliente de performance desconectado.")
+
+@app.get("/api/system/health")
+async def system_health():
+    """Retorna status detalhado de todos os projetos e processos"""
+    health_status = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "running_workflows": list(running_workflows.keys()),
+        "projects_status": {}
+    }
+    
+    for project_name in os.listdir(PROJECTS_ROOT):
+        project_path = os.path.join(PROJECTS_ROOT, project_name)
+        if os.path.isdir(project_path):
+            status = await get_detailed_project_status(project_name)
+            health_status["projects_status"][project_name] = status
+    
+    return health_status
+
+async def get_detailed_project_status(project_name: str) -> Dict:
+    """Obtém status detalhado de um projeto específico"""
+    project_path = os.path.join(PROJECTS_ROOT, project_name)
+    outputs_dir = os.path.join(project_path, "out", "outputs")
+    
+    status = {
+        "exists": os.path.exists(project_path),
+        "has_outputs": os.path.exists(outputs_dir),
+        "log_files": [],
+        "process_running": project_name in running_workflows
+    }
+    
+    if os.path.exists(outputs_dir):
+        log_files = glob.glob(os.path.join(outputs_dir, "*.log"))
+        status["log_files"] = [os.path.basename(f) for f in log_files]
+        
+        if log_files:
+            latest_log = max(log_files, key=os.path.getmtime)
+            status["latest_log"] = os.path.basename(latest_log)
+            status["log_size"] = os.path.getsize(latest_log)
+            status["log_modified"] = datetime.datetime.fromtimestamp(os.path.getmtime(latest_log)).isoformat()
+    
+    return status
