@@ -27,7 +27,7 @@ const AnalysisPage = () => {
                   const extension = file.name.split('.').pop().toLowerCase();
                   let type;
 
-                  if (['nwk', 'newick', 'nexus', 'tree'].includes(extension)) {
+                  if (['nwk', 'newick', 'nexus', 'tree','tre'].includes(extension)) {
                         type = 'tree';
                   } else if (['fasta', 'fa', 'fas', 'aln', 'clustal'].includes(extension)) {
                         type = 'alignment';
@@ -107,7 +107,7 @@ const AnalysisPage = () => {
                   return (
                         <MSAViewer
                               data={selectedFile.content}
-                              onSequenceSelect={(seq) => console.log('Sequência selecionada:', seq)}
+                              onSequenceSelect={(seq) => console.log('Selected seq:', seq)}
                         />
                   );
             }

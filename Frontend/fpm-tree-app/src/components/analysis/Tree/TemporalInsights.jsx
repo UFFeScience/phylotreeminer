@@ -118,7 +118,7 @@ const TemporalInsights = ({ treeData }) => {
 
       return new Date(dateString);
     } catch (error) {
-      console.warn("Não foi possível parsear a data:", dateString);
+      console.warn("Unable to parse data:", dateString);
       return null;
     }
   };
@@ -157,12 +157,12 @@ const TemporalInsights = ({ treeData }) => {
     yField: "count",
     xAxis: {
       title: {
-        text: "Data",
+        text: "Date",
       },
     },
     yAxis: {
       title: {
-        text: "Número de Sequências",
+        text: "Number of Sequences",
       },
     },
     point: {
@@ -187,25 +187,25 @@ const TemporalInsights = ({ treeData }) => {
   const countries = [...new Set(dates.map((d) => d.geoLoc))].filter(Boolean);
 
   return (
-    <Card title="Análise Temporal das Sequências">
+    <Card title="Time Series Analysis">
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={8}>
           <Card size="small">
-            <Statistic title="Total de Sequências" value={totalSequences} />
+            <Statistic title="Total Sequences" value={totalSequences} />
             <Statistic
-              title="Período"
+              title="Period "
               value={dateRange}
               style={{ marginTop: 16 }}
             />
             <Statistic
-              title="Países"
+              title="Countries"
               value={countries.length}
               style={{ marginTop: 16 }}
             />
           </Card>
 
           <Card
-            title="Linha do Tempo"
+            title="Timeline"
             size="small"
             style={{ marginTop: 16}}
           >
@@ -227,12 +227,12 @@ const TemporalInsights = ({ treeData }) => {
         </Col>
 
         <Col xs={24} lg={16}>
-          <Card title="Distribuição Temporal" size="small">
+          <Card title="Time Distribution" size="small">
             <Line {...config} height={200} />
           </Card>
 
           <Card
-            title="Sequências por Ano"
+            title="Sequences by Year"
             size="small"
             style={{ marginTop: 16 }}
           >
@@ -244,7 +244,7 @@ const TemporalInsights = ({ treeData }) => {
                 return (
                   <List.Item>
                     <span>{year}</span>
-                    <Tag>{yearCount} sequência(s)</Tag>
+                    <Tag>{yearCount} sequence(s)</Tag>
                   </List.Item>
                 );
               }}

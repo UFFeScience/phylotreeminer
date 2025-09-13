@@ -9,7 +9,7 @@ const PhylogeneticInsights = ({ treeData, loading, error }) => {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
-        <Spin size="large" tip="Carregando dados..." />
+        <Spin size="large" tip="Loading data..." />
       </div>
     );
   }
@@ -18,7 +18,7 @@ const PhylogeneticInsights = ({ treeData, loading, error }) => {
     return (
       <Alert
         message="Erro"
-        description={error.message || "Ocorreu um erro ao carregar os dados."}
+        description={error.message || "An error occurred while loading the data."}
         type="error"
         showIcon
       />
@@ -28,8 +28,8 @@ const PhylogeneticInsights = ({ treeData, loading, error }) => {
   if (!treeData) {
     return (
       <Alert
-        message="Sem dados"
-        description="Nenhum dado filogenético disponível para análise."
+        message="No data"
+        description="No phylogenetic data available for analysis."
         type="warning"
         showIcon
       />

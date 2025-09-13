@@ -9,6 +9,7 @@ import {
   Dropdown,
   Menu,
   Empty,
+  message,
 } from "antd";
 import {
   MoreOutlined,
@@ -21,7 +22,7 @@ import { useNavigate } from "react-router-dom";
 
 const { Text } = Typography;
 
-const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
+const ProjectsTableView = ({ projects, statusMap, onProjectSelect, progressData = {} }) => {
   const [rerunLoading, setRerunLoading] = useState({});
 
   if (projects.length === 0) {
@@ -73,7 +74,7 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
 
       if (response.ok) {
         message.success(`Projeto ${projectName} está sendo reexecutado!`);
-        onRefresh(); 
+        onRefresh();
       } else {
         const errorData = await response.json();
         message.error(`Erro ao reexecutar: ${errorData.detail}`);
@@ -109,6 +110,42 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
     "Construction of Subtrees.": 80.5,
     "Frequent subtree mining.": 95.2,
     "Completed successfully!": 100,
+
+    "STEP: Construction of distance matrix.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with parsimony method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with IQ-TREE method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with FastTree method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with RAxML-NG method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with MrBayes method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Construction of distance matrix.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with parsimony method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Construction of distance matrix.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with parsimony method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with IQ-TREE method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with FastTree method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with RAxML-NG method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with MrBayes method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Construction of distance matrix.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Tree Construction with parsimony method.": 0,
+    "STEP: saving the tree image.": 0,
+    "STEP: Construction of Subtrees.": 0,
+    "STEP: Frequent subtree mining.": 0,
+    "STEP: Completed successfully!": 0,
   };
 
   const columns = [
@@ -143,21 +180,23 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect }) => {
     {
       title: "Progress",
       key: "progress",
-      render: (record) =>
-        record.status === "running" ? (
-          <Progress
-            percent={progress_percent[record.details?.current_step]}
-            status
-          />
-        ) : record.status === "completed" ? (
-          <Progress percent={100} status />
-        ) : record.status === "failed" ? (
-          <Progress percent={100} status="exception" />
-        ) : (
-          <Text type="secondary">
-            Loading <LoadingOutlined />
-          </Text>
-        ),
+      render: (record) => {
+        const currentProgress = progressData[record.name] || 0;
+
+        if (record.status === "running") {
+          return <Progress percent={currentProgress} status="active" />;
+        } else if (record.status === "completed") {
+          return <Progress percent={100} status="success" />;
+        } else if (record.status === "failed") {
+          return <Progress percent={100} status="exception" />;
+        } else {
+          return (
+            <Text type="secondary">
+              Loading <LoadingOutlined />
+            </Text>
+          );
+        }
+      },
     },
     {
       title: "Last Modified",

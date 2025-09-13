@@ -393,6 +393,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
       height: "75vh",
       width: "100%",
       overflow: "auto",
+      maxWidth: "100%"
     };
 
     switch (modalContentType) {
@@ -545,7 +546,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   );
 
   return (
-    <Card>
+    <Card style={{ width: '100%', overflow: 'auto' }}>
       <Space direction="vertical" style={{ width: "100%" }} size="large">
         {!initialProjectName && (
           <Select
@@ -569,7 +570,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
             <Card size="small" style={{ background: "#fafafa" }}>
               <Space
                 direction="horizontal"
-                style={{ width: "100%", justifyContent: "space-between" }}
+                style={{ width: "100%", justifyContent: "space-between", flexWrap: 'wrap', gap: '8px'}}
               >
                 <Breadcrumb separator=">">
                   <Breadcrumb.Item
@@ -583,7 +584,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
                 </Breadcrumb>
 
                 {isComparisonAllowed && (
-                  <Space>
+                  <Space direction="horizontal" style={{ width: "100%" }} size="large">
                     <Button
                       icon={<CompareIcon />}
                       type={comparisonMode ? "primary" : "default"}
@@ -634,7 +635,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
               dataSource={directoryContent}
               renderItem={renderItem}
               locale={{ emptyText: "This folder is empty." }}
-              style={{ maxHeight: "50vh", overflow: "auto" }}
+              style={{ maxHeight: "50vh", overflow: "auto", width: '100%' }}
             />
           </>
         )}
@@ -652,7 +653,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         onCancel={handleCloseModal}
         footer={null}
         width="90vw"
-        style={{ top: 20 }}
+        style={{ top: 20, maxWidth: '90vw'}}
         // destroyOnClose
       >
         {renderModalContent()}

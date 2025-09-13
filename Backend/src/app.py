@@ -94,6 +94,7 @@ class FileSystemItem(BaseModel):
 class ProjectDetails(BaseModel):
     input_file: Optional[str] = None
     current_step: Optional[str] = None
+    progress: Optional[int] = Field(0, ge=0, le=100, description="Progresso atual em porcentagem")
     
 class WorkflowConfig(BaseModel):
     """Modelo para as configurações do workflow enviadas pelo frontend."""
@@ -177,15 +178,16 @@ def parse_log_line(line: str) -> dict:
 
 async def stream_workflow_output(project_name: str, process: asyncio.subprocess.Process):
     """
-    Lê stdout/stderr de um processo, analisa o progresso de múltiplos tqdms
-    e transmite um progresso combinado via WebSocket.
+    Lê stdout/stderr de um processo e analisa o progresso real
     """
     print(f"Iniciando streaming de saída para o projeto: {project_name}")
+    
     tqdm_regex = re.compile(r"(\d+)\s*%\s*\|")
-
-    current_stage = 1
+    step_regex = re.compile(r"STEP:\s*(.*)")
+    progress_regex = re.compile(r"Progress:\s*(\d+)%")
+    
+    current_step = "Starting..."
     last_percentage = 0
-    total_stages = 2
 
     while True:
         if process.returncode is not None:
@@ -195,29 +197,41 @@ async def stream_workflow_output(project_name: str, process: asyncio.subprocess.
             stdout_line = await asyncio.wait_for(process.stdout.readline(), timeout=0.1)
             if stdout_line:
                 line_str = stdout_line.decode('utf-8', errors='ignore').strip()
-                tqdm_match = tqdm_regex.search(line_str)
                 
+                tqdm_match = tqdm_regex.search(line_str)
                 if tqdm_match:
                     percentage = int(tqdm_match.group(1))
-
-                    if percentage < last_percentage and current_stage < total_stages:
-                        current_stage += 1
-                    
-                    stage_progress = percentage / total_stages
-                    completed_stages_progress = (current_stage - 1) * (100 / total_stages)
-                    
-                    total_progress = int(completed_stages_progress + stage_progress)
-                    
-                    total_progress = min(total_progress, 100)
                     last_percentage = percentage
-
+                    
                     await manager.broadcast(project_name, {
                         "type": "tqdm_update",
-                        "payload": {"percentage": total_progress, "details": line_str}
+                        "payload": {"percentage": percentage, "details": line_str}
                     })
+                
+                step_match = step_regex.search(line_str)
+                if step_match:
+                    current_step = step_match.group(1).strip()
+                    await manager.broadcast(project_name, {
+                        "type": "step_update",
+                        "payload": {"step": current_step}
+                    })
+                
+                progress_match = progress_regex.search(line_str)
+                if progress_match:
+                    percentage = int(progress_match.group(1))
+                    last_percentage = percentage
+                    
+                    await manager.broadcast(project_name, {
+                        "type": "tqdm_update",
+                        "payload": {"percentage": percentage, "details": line_str}
+                    })
+                
                 else:
                     parsed_line = parse_log_line(line_str)
-                    await manager.broadcast(project_name, {"type": "progress_update", "payload": parsed_line})
+                    await manager.broadcast(project_name, {
+                        "type": "progress_update", 
+                        "payload": parsed_line
+                    })
 
         except asyncio.TimeoutError:
             pass 
@@ -228,19 +242,23 @@ async def stream_workflow_output(project_name: str, process: asyncio.subprocess.
                 line_str = stderr_line.decode('utf-8', errors='ignore').strip()
                 await manager.broadcast(project_name, {
                     "type": "progress_update",
-                    "payload": {"level": "ERROR", "message": line_str, "timestamp": datetime.datetime.now().isoformat()}
+                    "payload": {
+                        "level": "ERROR", 
+                        "message": line_str, 
+                        "timestamp": datetime.datetime.now().isoformat()
+                    }
                 })
         except asyncio.TimeoutError:
             pass
 
     return_code = await process.wait()
     
-
     print(f"Workflow do projeto {project_name} concluído com código de saída: {return_code}")
 
     final_message = {
         "timestamp": datetime.datetime.now().isoformat()
     }
+    
     if return_code == 0:
         final_message["type"] = "workflow_complete"
         final_message["message"] = f"Project workflow {project_name} completed successfully."
@@ -676,6 +694,11 @@ async def get_projects_details(project_names: List[str]):
 
         input_file = "Not found"
         current_step = "Not started"
+        current_progress = 0
+
+        if project_name in running_workflows:
+            current_step = "Running..."
+            current_progress = 0 
 
         if os.path.exists(outputs_dir):
             log_files = glob.glob(os.path.join(outputs_dir, "*.log"))
@@ -686,6 +709,7 @@ async def get_projects_details(project_names: List[str]):
 
                 input_file_regex = re.compile(r"Iniciando processamento do arquivo:\s*(.*)")
                 step_regex = re.compile(r"STEP:\s*(.*)")
+                progress_regex = re.compile(r"(\d+)\s*%\s*\|")
 
                 found_input = False
                 found_step = False
@@ -696,6 +720,10 @@ async def get_projects_details(project_names: List[str]):
                         if match:
                             current_step = match.group(1).strip()
                             found_step = True
+                            
+                    progress_match = progress_regex.search(line)
+                    if progress_match:
+                        current_progress = int(progress_match.group(1))
 
                     if not found_input:
                         match = input_file_regex.search(line)
@@ -706,7 +734,11 @@ async def get_projects_details(project_names: List[str]):
                     if found_input and found_step:
                         break
         
-        details[project_name] = ProjectDetails(input_file=input_file, current_step=current_step)
+        details[project_name] = ProjectDetails(
+            input_file=input_file, 
+            current_step=current_step,
+            progress=current_progress
+        )
         
     return details
 

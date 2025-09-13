@@ -118,7 +118,7 @@ const GeographicDistribution = ({ treeData }) => {
             }
           }
         } catch (error) {
-          console.warn("Erro ao processar sequência:", sequence, error);
+          console.warn("Error processing sequence:", sequence, error);
         }
       }
 
@@ -160,7 +160,7 @@ const GeographicDistribution = ({ treeData }) => {
           justifyContent: "center",
         }}
       >
-        Carregando mapa...
+        Loading Map...
       </div>
     );
   }
@@ -168,7 +168,7 @@ const GeographicDistribution = ({ treeData }) => {
   if (loading) {
     return (
       <Card
-        title="Distribuição Geográfica das Sequências"
+        title="Geographic Distribution of Sequences"
         style={{ marginBottom: 24 }}
       >
         <div style={{ 
@@ -177,7 +177,7 @@ const GeographicDistribution = ({ treeData }) => {
           alignItems: "center", 
           justifyContent: "center" 
         }}>
-          <Spin size="large" tip="Carregando dados geográficos..." />
+          <Spin size="large" tip="Loading geographic data..." />
         </div>
       </Card>
     );
@@ -185,7 +185,7 @@ const GeographicDistribution = ({ treeData }) => {
 
   return (
     <Card
-      title="Distribuição Geográfica das Sequências"
+      title="Geographical Distribution of Sequences"
       style={{ marginBottom: 24 }}
     >
       <Row gutter={[16, 16]}>
@@ -244,12 +244,12 @@ const GeographicDistribution = ({ treeData }) => {
                         borderRadius: '4px'
                       }}>
                         <Tag color="blue" style={{ margin: 0 }}>
-                          {country.count} sequência(s)
+                          {country.count} sequence(s)
                         </Tag>
                       </div>
                       
                       <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        <h5 style={{ margin: '8px 0' }}>Sequências:</h5>
+                        <h5 style={{ margin: '8px 0' }}>sequences:</h5>
                         {country.sequences.map((seq, idx) => (
                           <div
                             key={idx}
@@ -267,7 +267,7 @@ const GeographicDistribution = ({ treeData }) => {
                               ID: {seq.id}
                             </div>
                             <div style={{ fontSize: '12px', color: '#666' }}>
-                              Data: {seq.collectionDate || "N/A"}
+                              Date: {seq.collectionDate || "N/A"}
                             </div>
                           </div>
                         ))}
@@ -281,7 +281,7 @@ const GeographicDistribution = ({ treeData }) => {
         </Col>
 
         <Col xs={24} md={8}>
-          <Card title="Resumo por País" size="small">
+          <Card title="Summary by Country" size="small">
             {countryData.length > 0 ? (
               <List
                 style={{ height: "400px", overflow: "auto" }}
@@ -305,7 +305,7 @@ const GeographicDistribution = ({ treeData }) => {
                       }
                       description={
                         <div>
-                          <Tag color="blue">{item.count} sequência(s)</Tag>
+                          <Tag color="blue">{item.count} sequence(s)</Tag>
                           {item.sequences.slice(0, 3).map((seq, idx) => (
                             <div
                               key={idx}
@@ -316,7 +316,7 @@ const GeographicDistribution = ({ treeData }) => {
                           ))}
                           {item.sequences.length > 3 && (
                             <div style={{ fontSize: "12px", color: "#888" }}>
-                              +{item.sequences.length - 3} mais...
+                              +{item.sequences.length - 3} more...
                             </div>
                           )}
                         </div>
@@ -329,7 +329,7 @@ const GeographicDistribution = ({ treeData }) => {
               <div
                 style={{ textAlign: "center", padding: "20px", color: "#999" }}
               >
-                Nenhum dado geográfico disponível
+                No geographic data available
               </div>
             )}
           </Card>

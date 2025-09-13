@@ -295,6 +295,7 @@ const PipelineConfigurator = () => {
     if (current === 0) {
       try {
         const values = await form.validateFields({ recursive: true });
+        
         const finalConfig = {
           general: {
             project_name: values.project_name.replace(/ /g, "_"),
@@ -316,10 +317,10 @@ const PipelineConfigurator = () => {
           },
           trees: {
             mode:
-              values.trees?.mode === "auto"
-                ? "auto"
+              values.trees?.mode === "auto" ||  values.trees?.mode === "advanced"
+                ? values.trees?.mode
                 : values.trees?.construct_method,
-            ignore_mode: values.trees?.ignore_mode || "",
+            ignore_mode: values.trees?.ignore_mode === 'none' ? ' ' : values.trees?.ignore_mode,
             num_threads: values.trees?.num_threads || 1,
             construct_method: values.trees?.algorithm_reconstruct || "nj",
             alignment_method: values.trees?.alignment_method || "mafft",
@@ -447,9 +448,7 @@ const PipelineConfigurator = () => {
 
       tree_config: {
         mode: trees.mode === "auto" ? "auto" : trees.mode,
-        ignore_mode: Array.isArray(trees.ignore_mode)
-          ? trees.ignore_mode[0]
-          : trees.ignore_mode,
+        ignore_mode: trees.ignore_mode,
         construct_tree_method:
           trees.mode === "manual" ? trees.algorithm_reconstruct : "nj",
         align_method:
@@ -626,6 +625,7 @@ const PipelineConfigurator = () => {
                 <Radio.Group>
                   <Radio value="auto">Automatic (all combinations)</Radio>
                   <Radio value="manual">Manual</Radio>
+                  <Radio value="advanced">Advanced</Radio>
                 </Radio.Group>
               </Form.Item>
             </Col>
@@ -638,12 +638,12 @@ const PipelineConfigurator = () => {
                 initialValue="parsimony"
               >
                 <Select
-                  mode="multiple"
                   placeholder="Select methods to ignore in auto mode"
                   allowClear
                 >
                   <Option value="distance">Distance</Option>
                   <Option value="parsimony">Parsimônia</Option>
+                  <Option value="none">None</Option>
                 </Select>
               </Form.Item>
             </Col>
