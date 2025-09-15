@@ -44,7 +44,7 @@ const FooterComponent = () => (
         >
             <div>
                 <Typography variant="body2" color="text.secondary">
-                    Copyright {new Date().getFullYear()} - PhyloTreeMiner@UFF
+                    Copyright {new Date().getFullYear()} - UFFeScience
                 </Typography>
             </div>
             <Stack direction="column" spacing={1} useFlexGap>

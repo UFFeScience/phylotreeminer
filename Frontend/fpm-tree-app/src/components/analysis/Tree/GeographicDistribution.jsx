@@ -1,9 +1,14 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { Card, Row, Col, Tag, List, Spin, Space } from "antd";
-import { getCoordinatesForCountryWithFallback, isValidCoordinates } from "./useGeocoding";
+import {
+  getCoordinatesForCountryWithFallback,
+  isValidCoordinates,
+} from "./useGeocoding";
 import { MapContainer, TileLayer, Circle, Popup, Tooltip } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+const COUNTRY_COORDINATES_CACHE = new Map();
 
 const createLeafletIcon = () => {
   delete L.Icon.Default.prototype._getIconUrl;
@@ -18,9 +23,21 @@ const createLeafletIcon = () => {
 };
 
 const COUNTRY_COLORS = [
-  '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7',
-  '#a29bfe', '#fd79a8', '#e17055', '#00b894', '#00cec9',
-  '#0984e3', '#d63031', '#fdcb6e', '#636e72', '#b2bec3'
+  "#ff6b6b",
+  "#4ecdc4",
+  "#45b7d1",
+  "#f9ca24",
+  "#6c5ce7",
+  "#a29bfe",
+  "#fd79a8",
+  "#e17055",
+  "#00b894",
+  "#00cec9",
+  "#0984e3",
+  "#d63031",
+  "#fdcb6e",
+  "#636e72",
+  "#b2bec3",
 ];
 
 const getCountryColor = (countryName) => {
@@ -36,6 +53,24 @@ const calculateRadius = (count, maxCount) => {
   const maxRadius = 400000; // 300km
   const scale = Math.sqrt(count / maxCount);
   return minRadius + (maxRadius - minRadius) * scale;
+};
+
+const getCachedCoordinates = async (country) => {
+  if (COUNTRY_COORDINATES_CACHE.has(country)) {
+    return COUNTRY_COORDINATES_CACHE.get(country);
+  }
+
+  const coordinates = await getCoordinatesForCountryWithFallback(country);
+  COUNTRY_COORDINATES_CACHE.set(country, coordinates);
+  return coordinates;
+};
+
+const clearCountryCache = (country = null) => {
+  if (country) {
+    COUNTRY_COORDINATES_CACHE.delete(country);
+  } else {
+    COUNTRY_COORDINATES_CACHE.clear();
+  }
 };
 
 const GeographicDistribution = ({ treeData }) => {
@@ -88,28 +123,28 @@ const GeographicDistribution = ({ treeData }) => {
       const allSequences = extractAllSequences();
       const countries = {};
 
+      const uniqueCountries = new Set();
+      const sequencesByCountry = {};
+
       for (const sequence of allSequences) {
         try {
           const features = sequence.metadata?.features;
           if (features && Array.isArray(features) && features.length > 0) {
             const qualifiers = features[0]?.qualifiers;
             const geoLoc = qualifiers?.geo_loc_name?.[0];
-            const collectionDate = qualifiers?.collection_date?.[0];
-            const isolate = qualifiers?.isolate?.[0] || qualifiers?.strain?.[0];
 
             if (geoLoc) {
-              if (!countries[geoLoc]) {
-                const coordinates = await getCoordinatesForCountryWithFallback(geoLoc);
-                
-                countries[geoLoc] = {
-                  count: 0,
-                  sequences: [],
-                  coordinates: coordinates,
-                };
+              uniqueCountries.add(geoLoc);
+
+              if (!sequencesByCountry[geoLoc]) {
+                sequencesByCountry[geoLoc] = [];
               }
 
-              countries[geoLoc].count++;
-              countries[geoLoc].sequences.push({
+              const collectionDate = qualifiers?.collection_date?.[0];
+              const isolate =
+                qualifiers?.isolate?.[0] || qualifiers?.strain?.[0];
+
+              sequencesByCountry[geoLoc].push({
                 id: sequence.metadata.id,
                 isolate,
                 collectionDate,
@@ -122,8 +157,67 @@ const GeographicDistribution = ({ treeData }) => {
         }
       }
 
-      setGeoData(countries);
-      setLoading(false);
+      const processWithConcurrency = async (
+        items,
+        processor,
+        concurrency = 5
+      ) => {
+        const results = [];
+        let index = 0;
+
+        const processNext = async () => {
+          if (index >= items.length) return;
+
+          const currentIndex = index++;
+          const item = items[currentIndex];
+
+          try {
+            const result = await processor(item);
+            results[currentIndex] = result;
+          } catch (error) {
+            results[currentIndex] = { error, country: item };
+            console.warn(`Error processing country ${item}:`, error);
+          }
+
+          await processNext();
+        };
+
+        const workers = Array(Math.min(concurrency, items.length))
+          .fill(null)
+          .map(processNext);
+
+        await Promise.all(workers);
+        return results;
+      };
+
+      try {
+        const countriesArray = Array.from(uniqueCountries);
+        
+        const coordinatesResults = await processWithConcurrency(
+          countriesArray,
+          async (country) => {
+            const coordinates = await getCachedCoordinates(country);
+            return { country, coordinates };
+          },
+          5 
+        );
+
+        coordinatesResults.forEach((result) => {
+          if (!result.error && isValidCoordinates(result.coordinates)) {
+            countries[result.country] = {
+              count: sequencesByCountry[result.country].length,
+              sequences: sequencesByCountry[result.country],
+              coordinates: result.coordinates,
+            };
+          }
+        });
+
+        setGeoData(countries);
+      } catch (error) {
+        console.error("Error processing coordinates:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
     if (treeData) {
@@ -138,17 +232,44 @@ const GeographicDistribution = ({ treeData }) => {
         count: data.count,
         coordinates: data.coordinates,
         sequences: data.sequences,
-        color: getCountryColor(country)
+        color: getCountryColor(country),
       }))
-      .filter(item => isValidCoordinates(item.coordinates));
+      .filter((item) => isValidCoordinates(item.coordinates));
 
-    const maxCount = data.length > 0 ? Math.max(...data.map(item => item.count)) : 0;
+    const maxCount =
+      data.length > 0 ? Math.max(...data.map((item) => item.count)) : 0;
 
-    return data.map(item => ({
+    return data.map((item) => ({
       ...item,
-      radius: calculateRadius(item.count, maxCount)
+      radius: calculateRadius(item.count, maxCount),
     }));
   }, [geoData]);
+
+  const reloadCountryData = useCallback(async (country) => {
+    clearCountryCache(country);
+    
+    setLoading(true);
+    try {
+      const coordinates = await getCachedCoordinates(country);
+      
+      setGeoData(prev => {
+        if (prev[country]) {
+          return {
+            ...prev,
+            [country]: {
+              ...prev[country],
+              coordinates: coordinates
+            }
+          };
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error(`Error reloading country ${country}:`, error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   if (!isClient) {
     return (
@@ -171,12 +292,14 @@ const GeographicDistribution = ({ treeData }) => {
         title="Geographic Distribution of Sequences"
         style={{ marginBottom: 24 }}
       >
-        <div style={{ 
-          height: "400px", 
-          display: "flex", 
-          alignItems: "center", 
-          justifyContent: "center" 
-        }}>
+        <div
+          style={{
+            height: "400px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <Spin size="large" tip="Loading geographic data..." />
         </div>
       </Card>
@@ -187,6 +310,11 @@ const GeographicDistribution = ({ treeData }) => {
     <Card
       title="Geographical Distribution of Sequences"
       style={{ marginBottom: 24 }}
+      // extra={
+      //   <div style={{ fontSize: '12px', color: '#666' }}>
+      //     Cache: {COUNTRY_COORDINATES_CACHE.size} países
+      //   </div>
+      // }
     >
       <Row gutter={[16, 16]}>
         <Col xs={24} md={16}>
@@ -202,7 +330,7 @@ const GeographicDistribution = ({ treeData }) => {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
-              
+
               {countryData.map((country, index) => (
                 <Circle
                   key={index}
@@ -210,63 +338,82 @@ const GeographicDistribution = ({ treeData }) => {
                   radius={country.radius}
                   pathOptions={{
                     fillColor: country.color,
-                    color: '#333',
+                    color: "#333",
                     weight: 2,
                     opacity: 0.8,
                     fillOpacity: 0.6,
                   }}
                 >
                   <Tooltip permanent={false} direction="center" opacity={0.9}>
-                    <div style={{ 
-                      textAlign: 'center', 
-                      fontWeight: 'bold',
-                      fontSize: '14px',
-                      color: '#333'
-                    }}>
+                    <div
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "bold",
+                        fontSize: "14px",
+                        color: "#333",
+                      }}
+                    >
                       <Space direction="vertical">
                         <span>{country.country}</span>
                         <p>{country.count} Sequences</p>
                       </Space>
                     </div>
                   </Tooltip>
-                  
+
                   <Popup>
-                    <div style={{ minWidth: '200px' }}>
-                      <h4 style={{ margin: '0 0 8px 0', color: country.color }}>
+                    <div style={{ minWidth: "200px" }}>
+                      <h4 style={{ margin: "0 0 8px 0", color: country.color }}>
                         {country.country}
                       </h4>
-                      <div style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        marginBottom: '12px',
-                        padding: '8px',
-                        backgroundColor: '#f8f9fa',
-                        borderRadius: '4px'
-                      }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          marginBottom: "12px",
+                          padding: "8px",
+                          backgroundColor: "#f8f9fa",
+                          borderRadius: "4px",
+                        }}
+                      >
                         <Tag color="blue" style={{ margin: 0 }}>
                           {country.count} sequence(s)
                         </Tag>
+                        <button
+                          onClick={() => reloadCountryData(country.country)}
+                          style={{
+                            marginLeft: '8px',
+                            padding: '2px 6px',
+                            fontSize: '10px',
+                            border: '1px solid #ddd',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                            backgroundColor: '#f0f0f0'
+                          }}
+                          title="Recarregar coordenadas"
+                        >
+                          ↻
+                        </button>
                       </div>
-                      
-                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        <h5 style={{ margin: '8px 0' }}>sequences:</h5>
+
+                      <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                        <h5 style={{ margin: "8px 0" }}>sequences:</h5>
                         {country.sequences.map((seq, idx) => (
                           <div
                             key={idx}
-                            style={{ 
-                              marginBottom: '8px', 
-                              padding: '6px',
+                            style={{
+                              marginBottom: "8px",
+                              padding: "6px",
                               borderLeft: `3px solid ${country.color}`,
-                              backgroundColor: '#f8f9fa'
+                              backgroundColor: "#f8f9fa",
                             }}
                           >
                             <div>
                               <strong>{seq.isolate || "N/A"}</strong>
                             </div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>
+                            <div style={{ fontSize: "12px", color: "#666" }}>
                               ID: {seq.id}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>
+                            <div style={{ fontSize: "12px", color: "#666" }}>
                               Date: {seq.collectionDate || "N/A"}
                             </div>
                           </div>
@@ -290,14 +437,14 @@ const GeographicDistribution = ({ treeData }) => {
                   <List.Item>
                     <List.Item.Meta
                       title={
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ display: "flex", alignItems: "center" }}>
                           <div
                             style={{
-                              width: '12px',
-                              height: '12px',
-                              borderRadius: '50%',
+                              width: "12px",
+                              height: "12px",
+                              borderRadius: "50%",
                               backgroundColor: item.color,
-                              marginRight: '8px'
+                              marginRight: "8px",
                             }}
                           />
                           {item.country}

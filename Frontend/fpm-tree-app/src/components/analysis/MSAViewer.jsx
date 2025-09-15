@@ -477,6 +477,7 @@ const MSAViewer = ({ data, onSequenceSelect }) => {
         <Tag>Sequences: {sequences.length}</Tag>
         <Tag>Length: {sequences.length > 0 ? sequences[0].sequence.length : 0}</Tag>
       </div>
+      <span style={{color:'white', fontSize:'8@px'}}>By Aissa S. Cezario Desiderio</span>
     </Card>
   );
 };

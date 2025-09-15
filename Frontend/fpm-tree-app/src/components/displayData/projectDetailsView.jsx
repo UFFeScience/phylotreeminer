@@ -8,19 +8,19 @@ const ProjectDetailView = ({ projectName, onBack }) => {
   const [logs, setLogs] = useState([]);
   const logContainerRef = useRef(null);
 
-  useEffect(() => {
-    if (!projectName) return;
-    const wsUrl = `ws://localhost:8000/ws/progress/${encodeURIComponent(
-      projectName
-    )}`;
-    const socket = new WebSocket(wsUrl);
-    socket.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      setLogs((prevLogs) => [...prevLogs, msg]);
-      // console.log(`Received log for ${projectName}:`, msg);
-    };
-    return () => socket.close();
-  }, [projectName]);
+  // useEffect(() => {
+  //   if (!projectName) return;
+  //   const wsUrl = `ws://localhost:8000/ws/progress/${encodeURIComponent(
+  //     projectName
+  //   )}`;
+  //   const socket = new WebSocket(wsUrl);
+  //   socket.onmessage = (event) => {
+  //     const msg = JSON.parse(event.data);
+  //     setLogs((prevLogs) => [...prevLogs, msg]);
+  //     // console.log(`Received log for ${projectName}:`, msg);
+  //   };
+  //   return () => socket.close();
+  // }, [projectName]);
 
   useEffect(() => {
     if (logContainerRef.current) {
@@ -41,13 +41,13 @@ const ProjectDetailView = ({ projectName, onBack }) => {
         ← Return to Project Gallery
       </Button>
       <Title level={3}>Project Details: {projectName}</Title>
-      <Row gutter={24}>
+      <Row gutter={24} justify="center" align="middle">
         <Col xs={24} md={10}>
           <Title level={4}>File Explorer</Title>
           <ProjectExplorer initialProjectName={projectName} />
         </Col>
 
-        <Col xs={24} md={14}>
+        {/* <Col xs={24} md={14}>
           <Collapse
             defaultActiveKey={["1"]} 
             items={[
@@ -107,7 +107,7 @@ const ProjectDetailView = ({ projectName, onBack }) => {
               },
             ]}
           />
-        </Col>
+        </Col> */}
       </Row>
     </div>
   );

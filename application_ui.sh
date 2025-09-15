@@ -219,62 +219,62 @@ echo "Starting frontend in background..."
 cd Frontend/fpm-tree-app || { echo "ERROR: Frontend/fpm-tree-app directory not found!"; cleanup; }
 
 # Check if npm is available
-if ! command -v npm &> /dev/null; then
-    echo "📦 Installing Node.js..."
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt-get install -y nodejs
-fi
+# if ! command -v npm &> /dev/null; then
+#     echo "📦 Installing Node.js..."
+#     curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+#     sudo apt-get install -y nodejs
+# fi
 
-# Check if npm is available
-if ! command -v npm &> /dev/null; then
-    echo "❌ ERROR: npm not found even after Node.js install!"
-    cleanup
-fi
+# # Check if npm is available
+# if ! command -v npm &> /dev/null; then
+#     echo "❌ ERROR: npm not found even after Node.js install!"
+#     cleanup
+# fi
 
-# Check if package.json exists
-if [ ! -f "package.json" ]; then
-    echo "❌ ERROR: package.json not found in frontend directory!"
-    cleanup
-fi
+# # Check if package.json exists
+# if [ ! -f "package.json" ]; then
+#     echo "❌ ERROR: package.json not found in frontend directory!"
+#     cleanup
+# fi
 
-# Remove node_modules and lock file to avoid conflicts
-echo "🧹 Cleaning old dependencies..."
-rm -rf node_modules package-lock.json
+# # Remove node_modules and lock file to avoid conflicts
+# echo "🧹 Cleaning old dependencies..."
+# rm -rf node_modules package-lock.json
 
-# Install required frontend dependencies
-echo "📦 Installing frontend dependencies..."
-npm install react@18 react-dom@18 --save
-npm install vite @vitejs/plugin-react --save-dev
-npm install react-router-dom leaflet vis-data vis-network react-markdown --save
-npm install react-leaflet@4.2.1 --save
+# # Install required frontend dependencies
+# echo "📦 Installing frontend dependencies..."
+# npm install react@18 react-dom@18 --save
+# npm install vite @vitejs/plugin-react --save-dev
+# npm install react-router-dom leaflet vis-data vis-network react-markdown --save
+# npm install react-leaflet@4.2.1 --save
 
-# Reinstall all other project dependencies
-npm install
+# # Reinstall all other project dependencies
+# npm install
 
-# Ensure vite.config.js exists with react plugin
-if [ ! -f "vite.config.js" ]; then
-    echo "⚠️ vite.config.js not found, creating a basic one..."
-    cat > vite.config.js <<EOL
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+# # Ensure vite.config.js exists with react plugin
+# if [ ! -f "vite.config.js" ]; then
+#     echo "⚠️ vite.config.js not found, creating a basic one..."
+#     cat > vite.config.js <<EOL
+# import { defineConfig } from 'vite'
+# import react from '@vitejs/plugin-react'
 
-export default defineConfig({
-  plugins: [react()],
-})
-EOL
-fi
+# export default defineConfig({
+#   plugins: [react()],
+# })
+# EOL
+# fi
 
-# Ensure tsconfig.json/jsconfig.json has react-jsx
-if [ ! -f "tsconfig.json" ] && [ ! -f "jsconfig.json" ]; then
-    echo "⚠️ tsconfig.json/jsconfig.json not found, creating jsconfig.json..."
-    cat > jsconfig.json <<EOL
-{
-  "compilerOptions": {
-    "jsx": "react-jsx"
-  }
-}
-EOL
-fi
+# # Ensure tsconfig.json/jsconfig.json has react-jsx
+# if [ ! -f "tsconfig.json" ] && [ ! -f "jsconfig.json" ]; then
+#     echo "⚠️ tsconfig.json/jsconfig.json not found, creating jsconfig.json..."
+#     cat > jsconfig.json <<EOL
+# {
+#   "compilerOptions": {
+#     "jsx": "react-jsx"
+#   }
+# }
+# EOL
+# fi
 
 echo "Starting frontend server..."
 npm run dev > ../../$LOG_FILE_FRONTEND 2>&1 &

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Card,
   Table,
@@ -15,6 +15,7 @@ import {
   List,
   Button,
   Flex,
+  InputNumber,
 } from "antd";
 import { ClusterOutlined, ExperimentOutlined } from "@ant-design/icons";
 
@@ -25,20 +26,33 @@ const TreePatternAnalysis = ({ projectName }) => {
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [thresholdMin, setThresholdMin] = useState(0.2);
+  const [thresholdMax, setThresholdMax] = useState(0.6);
+
+  const analysisCache = useRef(new Map());
 
   const fetchAnalysis = async () => {
     setLoading(true);
     setError(null);
 
     try {
+      const cacheKey = `${projectName}_${thresholdMin}_${thresholdMax}`;
+
+      if (analysisCache.current.has(cacheKey)) {
+        setAnalysisData(analysisCache.current.get(cacheKey));
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(
-        // `http://localhost:8000/api/tree/pattern-analysis/${projectName}?min_support=0.1&max_support=0.9`
-        `http://localhost:8000/api/tree/pattern-analysis/${projectName}`
+        `http://localhost:8000/api/tree/pattern-analysis/${projectName}?min_support=${thresholdMin}&max_support=${thresholdMax}`
       );
 
       if (!response.ok) throw new Error("Failed to load analysis");
 
       const data = await response.json();
+
+      analysisCache.current.set(cacheKey, data);
       setAnalysisData(data);
     } catch (err) {
       setError(err.message);
@@ -51,7 +65,7 @@ const TreePatternAnalysis = ({ projectName }) => {
     if (projectName) {
       fetchAnalysis();
     }
-  }, [projectName]);
+  }, [projectName, thresholdMin, thresholdMax]);
 
   if (loading) {
     return (
@@ -130,19 +144,56 @@ const TreePatternAnalysis = ({ projectName }) => {
   return (
     <div style={{ padding: "24px" }}>
       <Flex justify="space-between" align="center">
-        <Title level={2}>
-          Tree Pattern Analysis
-        </Title>
+        <Title level={2}>Tree Pattern Analysis</Title>
         {/* <Button size="small" onClick={fetchAnalysis}>
           Reload Analysis
         </Button> */}
+        <Space
+          direction="vertical"
+          style={{
+            padding: 12,
+            marginTop: 16,
+          }}
+        >
+          <Title level={5} style={{ margin: 0 }}>
+            Support Threshold
+          </Title>
+          <Space style={{ width: "100%", justifyContent: "space-between" }}>
+            <Space direction="vertical" size={2}>
+              <Text type="secondary" strong style={{ fontSize: 12 }}>
+                Min
+              </Text>
+              <InputNumber
+                value={thresholdMin}
+                min={0.1}
+                max={1.0}
+                step={0.1}
+                onChange={setThresholdMin}
+                style={{ width: 100 }}
+              />
+            </Space>
+            <Space direction="vertical" size={2}>
+              <Text type="secondary" strong style={{ fontSize: 12 }}>
+                Max
+              </Text>
+              <InputNumber
+                value={thresholdMax}
+                min={0.1}
+                max={1.0}
+                step={0.1}
+                onChange={setThresholdMax}
+                style={{ width: 100 }}
+              />
+            </Space>
+          </Space>
+        </Space>
       </Flex>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
           <Card>
             <Statistic
-              title="Total Patterns"
+              title="Total Patterns (clades or subtrees)"
               value={pattern_statistics.total_patterns}
               prefix={<ClusterOutlined />}
             />
@@ -171,21 +222,18 @@ const TreePatternAnalysis = ({ projectName }) => {
             <Statistic
               title="Average Size"
               value={pattern_statistics.avg_pattern_size.toFixed(2)}
-              suffix="nodes"
+              suffix="Terminal (nodes)"
             />
           </Card>
         </Col>
       </Row>
 
-      <Card
-        title="Pattern Size Distribution"
-        style={{ marginBottom: 24 }}
-      >
+      <Card title="Pattern Size Distribution" style={{ marginBottom: 24 }}>
         <Row gutter={16}>
           {Object.entries(pattern_statistics.size_distribution).map(
             ([size, count]) => (
               <Col key={size} span={6}>
-                <Text strong>{size} nodes: </Text>
+                <Text strong>{size} Terminals (nodes): </Text>
                 <Text>{count} patterns</Text>
                 <Progress
                   percent={Math.round(
@@ -247,8 +295,8 @@ const TreePatternAnalysis = ({ projectName }) => {
                       Average support: {(stats.avg_support * 100).toFixed(1)}%
                     </Text>
                     <Text>
-                      Size: {stats.size_range.min}-{stats.size_range.max} nodes
-                      (avg: {stats.size_range.avg.toFixed(1)})
+                      Size: {stats.size_range.min}-{stats.size_range.max}{" "}
+                      Terminal(s) (avg: {stats.size_range.avg.toFixed(1)})
                     </Text>
                   </Space>
                 }

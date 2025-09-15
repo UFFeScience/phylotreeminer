@@ -188,7 +188,7 @@ function App() {
                 }}
               >
                 PhyloTreeMiner ©{new Date().getFullYear()} Created by
-                PhyloTreeMiner@UFF
+                UFFeScience
               </Footer>
             </Content>
           </Layout>
