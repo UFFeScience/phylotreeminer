@@ -2,10 +2,11 @@ import React from 'react';
 import { Layout, Spin, Alert } from 'antd';
 import GeographicDistribution from './GeographicDistribution';
 import TemporalInsights from './TemporalInsights';
+import AdvancedPhyloAnalysis from './AdvancedPhyloAnalysis';
 
 const { Content } = Layout;
 
-const PhylogeneticInsights = ({ treeData, loading, error }) => {
+const PhylogeneticInsights = ({ treeData, loading, projectName ,error }) => {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -41,6 +42,7 @@ const PhylogeneticInsights = ({ treeData, loading, error }) => {
       <Content>
         <GeographicDistribution treeData={treeData} />
         <TemporalInsights treeData={treeData} />
+        <AdvancedPhyloAnalysis projectName={projectName}/>
       </Content>
     </Layout>
   );

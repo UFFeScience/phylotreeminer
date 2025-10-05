@@ -420,6 +420,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
               <PhylogeneticInsights
                 treeData={[metadata[0]]}
                 loading={false}
+                projectName={selectedProject}
                 error={null}
               />
             </Space>

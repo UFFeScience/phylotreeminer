@@ -8,7 +8,7 @@ import os, datetime, mimetypes, asyncio, re, psutil, json, random
 import glob, tempfile, zipfile, shutil
 import pandas as pd
 from collections import defaultdict, Counter
-
+from pathlib import Path
 from Bio import Phylo, SeqIO, Entrez
 from io import StringIO, BytesIO
 import numpy as np
@@ -18,6 +18,8 @@ from dendropy.calculate import treecompare
 from src.routers import neo4j_router, ncbi_router, cql_router
 from src.services.neo4j_services import neo4j_service
 from src.services.ncbi_acquisition import NCBIAcquisition
+from src.analysis.advancedPhylogeneticAnalysis import  AnalysisConfig
+from src.services.advancedAnalysisService import AdvancedAnalysisService
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_BASE_WORKFLOW = os.path.abspath(os.path.join(BASE_DIR, "../../BioComp_UFF"))
@@ -134,6 +136,66 @@ class PatternAnalysisResult(BaseModel):
     quasi_invariant_patterns: List[Dict]
     pattern_statistics: Dict
     tree_coverage: Dict
+    
+class AdvancedAnalysisRequest(BaseModel):
+    """Request para análise avançada"""
+    min_support: Optional[float] = 0.7
+    max_divergence_time: Optional[float] = 1000.0
+    mutation_threshold: Optional[float] = 0.8
+    recombination_confidence: Optional[float] = 0.95
+    correlation_threshold: Optional[float] = 0.05
+
+
+# Analise avancada
+
+@app.post("/api/advanced-analysis/{project_name}/start")
+async def start_advanced_analysis(
+    project_name: str, 
+    config: AdvancedAnalysisRequest
+):
+    """Iniciar análise avançada para um projeto"""
+    analysis_config = AnalysisConfig(
+        min_support=config.min_support,
+        max_divergence_time=config.max_divergence_time,
+        mutation_threshold=config.mutation_threshold,
+        recombination_confidence=config.recombination_confidence,
+        correlation_threshold=config.correlation_threshold
+    )
+    
+    analysis_id = await advanced_analysis_service.start_analysis(
+        project_name, analysis_config
+    )
+    
+    return {
+        "analysis_id": analysis_id,
+        "message": f"Advanced analysis started for project {project_name}",
+        "status_url": f"/api/advanced-analysis/status/{analysis_id}"
+    }
+
+@app.get("/api/advanced-analysis/status/{analysis_id}")
+async def get_analysis_status(analysis_id: str):
+    """Obter status de uma análise em andamento"""
+    status = AdvancedAnalysisService.get_analysis_status(analysis_id)
+    return status
+
+@app.get("/api/advanced-analysis/results/{analysis_id}")
+async def get_analysis_results(analysis_id: str):
+    """Obter resultados de uma análise concluída"""
+    results = AdvancedAnalysisService.get_analysis_results(analysis_id)
+    return results
+
+@app.get("/api/advanced-analysis/{project_name}/latest")
+async def get_latest_analysis(project_name: str):
+    """Obter a análise mais recente de um projeto"""
+    project_path = Path(PROJECTS_ROOT) / project_name
+    results_dir = project_path / "advanced_analysis"
+    
+    results_file = results_dir / "complete_analysis_results.json"
+    if not results_file.exists():
+        raise HTTPException(404, "No analysis results found for this project")
+    
+    with open(results_file, 'r') as f:
+        return json.load(f)
     
 #  WebSocket para Monitoramento de Progresso 
 class ProgressConnectionManager:
