@@ -58,7 +58,8 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [comparisonMode, setComparisonMode] = useState(false);
 
-  const [metadata, setMetadata] = useState("");
+  const [metadata, setMetadata] = useState(null);
+  const [dadosOWID, setDadosOWID] = useState(null);
   const [isComparisonAllowed, setIsComparisonAllowed] = useState(false);
   const [isComparisonLoading, setIsComparisonLoading] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
@@ -84,8 +85,13 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     };
     fetchProjects();
     fetchMetadata(initialProjectName);
-    fetchOWIDMetadata(initialProjectName);
   }, [initialProjectName]);
+
+  useEffect(() => {
+    if (metadata && Object.keys(metadata).length > 0) {
+      fetchOWIDMetadata(metadata);
+    }
+  }, [metadata]);
 
   const fetchDirectoryContent = useCallback(async (path) => {
     if (directoryContentRef.current.path === path) return;
@@ -130,15 +136,31 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     }
   }, []);
 
-  const [dadosOWID, setDadosOWID] = useState(null);
-
-  const fetchOWIDMetadata = useCallback(async (projectName) => {
-    if (!projectName) return;
+  const fetchOWIDMetadata = useCallback(async (metadata) => {
+    if (!metadata || Object.keys(metadata).length === 0) return;
 
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/owid/metadata/");
+      let payload = metadata;
+
+      if (typeof metadata === "string") {
+        try {
+          payload = JSON.parse(metadata);
+        } catch (parseError) {
+          console.error("Error parsing metadata.:", parseError);
+          throw new Error("Invalid metadata format.");
+        }
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/owid/metadata/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
       if (!response.ok) throw new Error("Failed to fetch metadata.");
 
       const data = await response.json();
@@ -275,9 +297,6 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     }
   };
 
-
-  
-  
   const toggleComparisonMode = () => {
     setComparisonMode(!comparisonMode);
     setSelectedItems([]);
@@ -418,7 +437,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
       height: "75vh",
       width: "100%",
       overflow: "auto",
-      maxWidth: "100%"
+      maxWidth: "100%",
     };
 
     switch (modalContentType) {
@@ -439,7 +458,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
       case "patternAnalysis":
         return (
           <div style={{ ...viewerContainerStyle, marginTop: 16 }}>
-            <Space direction="vertical" style={{width:"100%"}}>
+            <Space direction="vertical" style={{ width: "100%" }}>
               <TreePatternAnalysis projectName={selectedProject} />
 
               <PhylogeneticInsights
@@ -572,7 +591,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   );
 
   return (
-    <Card style={{ width: '100%', overflow: 'auto' }}>
+    <Card style={{ width: "100%", overflow: "auto" }}>
       <Space direction="vertical" style={{ width: "100%" }} size="large">
         {!initialProjectName && (
           <Select
@@ -596,7 +615,12 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
             <Card size="small" style={{ background: "#fafafa" }}>
               <Space
                 direction="horizontal"
-                style={{ width: "100%", justifyContent: "space-between", flexWrap: 'wrap', gap: '8px'}}
+                style={{
+                  width: "100%",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                }}
               >
                 <Breadcrumb separator=">">
                   <Breadcrumb.Item
@@ -610,7 +634,11 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
                 </Breadcrumb>
 
                 {isComparisonAllowed && (
-                  <Space direction="horizontal" style={{ width: "100%" }} size="large">
+                  <Space
+                    direction="horizontal"
+                    style={{ width: "100%" }}
+                    size="large"
+                  >
                     <Button
                       icon={<CompareIcon />}
                       type={comparisonMode ? "primary" : "default"}
@@ -661,7 +689,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
               dataSource={directoryContent}
               renderItem={renderItem}
               locale={{ emptyText: "This folder is empty." }}
-              style={{ maxHeight: "50vh", overflow: "auto", width: '100%' }}
+              style={{ maxHeight: "50vh", overflow: "auto", width: "100%" }}
             />
           </>
         )}
@@ -679,7 +707,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         onCancel={handleCloseModal}
         footer={null}
         width="90vw"
-        style={{ top: 20, maxWidth: '90vw'}}
+        style={{ top: 20, maxWidth: "90vw" }}
         // destroyOnClose
       >
         {renderModalContent()}

@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response, UploadFile, File, Form
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
@@ -20,6 +20,7 @@ import aiofiles
 from src.routers import neo4j_router, ncbi_router, cql_router
 from src.services.neo4j_services import neo4j_service
 from src.services.ncbi_acquisition import NCBIAcquisition
+from src.services.genericOWIDAnalyzer import GenericOWIDAnalyzer
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_BASE_WORKFLOW = os.path.abspath(os.path.join(BASE_DIR, "../../BioComp_UFF"))
@@ -136,6 +137,7 @@ class PatternAnalysisResult(BaseModel):
     quasi_invariant_patterns: List[Dict]
     pattern_statistics: Dict
     tree_coverage: Dict
+    
     
 #  WebSocket para Monitoramento de Progresso 
 class ProgressConnectionManager:
@@ -458,13 +460,15 @@ async def get_projects():
             
     return projects
 
-@app.get("/api/owid/metadata/")
-async def get_owid_metadata():
-    json_file_path='/home/joh/Documentos/GIT/FPM-Tree/BioComp_UFF/workflow/owid_analysis_report_v2.json'
-    async with aiofiles.open(json_file_path, 'r', encoding='utf-8') as f:
-        contents = await f.read()
-        data = json.loads(contents)
-    return JSONResponse(content=data)
+@app.post("/api/owid/metadata/")
+async def get_owid_metadata(request: Request):
+    try:
+        data = await request.json()
+        analyzer = GenericOWIDAnalyzer(data)
+        report = analyzer.generate_comprehensive_report()
+        return JSONResponse(content=report)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao processar JSON: {str(e)}")
 
 @app.get("/api/tree/metadata/{project_name}", status_code=202)
 async def get_tree_metadata(project_name: str):
@@ -481,7 +485,7 @@ async def get_tree_metadata(project_name: str):
         with open(metadata_path, 'r') as f:
             metadata = json.load(f)
 
-        return list(metadata[0])
+        return [metadata[0][0]]
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading metadata: {e}")
