@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from "react";
 import { Layout, Spin, Alert } from 'antd';
 import GeographicDistribution from './GeographicDistribution';
 import TemporalInsights from './TemporalInsights';
+import OWIDAnalysisDashboard from './OWIDAnalysisDashboard';
 
 const { Content } = Layout;
 
-const PhylogeneticInsights = ({ treeData, loading, error }) => {
+const PhylogeneticInsights = ({ treeData, owidMetadata, loading, error }) => {
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -36,11 +37,15 @@ const PhylogeneticInsights = ({ treeData, loading, error }) => {
     );
   }
 
+  
+
+
   return (
     <Layout style={{ padding: '24px', background: '#fff' }}>
       <Content>
         <GeographicDistribution treeData={treeData} />
         <TemporalInsights treeData={treeData} />
+        <OWIDAnalysisDashboard analysisData={owidMetadata}/>
       </Content>
     </Layout>
   );

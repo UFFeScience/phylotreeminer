@@ -84,6 +84,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     };
     fetchProjects();
     fetchMetadata(initialProjectName);
+    fetchOWIDMetadata(initialProjectName);
   }, [initialProjectName]);
 
   const fetchDirectoryContent = useCallback(async (path) => {
@@ -124,6 +125,27 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     } catch (err) {
       setError(err.message);
       setMetadata({});
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const [dadosOWID, setDadosOWID] = useState(null);
+
+  const fetchOWIDMetadata = useCallback(async (projectName) => {
+    if (!projectName) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/owid/metadata/");
+      if (!response.ok) throw new Error("Failed to fetch metadata.");
+
+      const data = await response.json();
+      setDadosOWID(data);
+    } catch (err) {
+      setError(err.message);
+      setDadosOWID({});
     } finally {
       setIsLoading(false);
     }
@@ -253,6 +275,9 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     }
   };
 
+
+  
+  
   const toggleComparisonMode = () => {
     setComparisonMode(!comparisonMode);
     setSelectedItems([]);
@@ -419,7 +444,8 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
 
               <PhylogeneticInsights
                 treeData={[metadata[0]]}
-                loading={false}
+                owidMetadata={dadosOWID}
+                loading={isLoading}
                 error={null}
               />
             </Space>

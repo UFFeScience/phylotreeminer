@@ -228,7 +228,7 @@ const TreePatternAnalysis = ({ projectName }) => {
         </Col>
       </Row>
 
-      <Card title="Pattern Size Distribution" style={{ marginBottom: 24 }}>
+      {/* <Card title="Pattern Size Distribution" style={{ marginBottom: 24 }}>
         <Row gutter={16}>
           {Object.entries(pattern_statistics.size_distribution).map(
             ([size, count]) => (
@@ -245,7 +245,7 @@ const TreePatternAnalysis = ({ projectName }) => {
             )
           )}
         </Row>
-      </Card>
+      </Card> */}
 
       <Collapse style={{ marginBottom: 24 }}>
         <Panel

@@ -24,6 +24,7 @@
     "react-leaflet": "^4.2.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.9.1",
+    "recharts": "^3.3.0",
     "vis-data": "^8.0.3",
     "vis-network": "^10.0.1"
   },

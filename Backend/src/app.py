@@ -15,6 +15,8 @@ import numpy as np
 from dendropy import Tree, TreeList, TaxonNamespace
 from dendropy.calculate import treecompare
 
+import aiofiles
+
 from src.routers import neo4j_router, ncbi_router, cql_router
 from src.services.neo4j_services import neo4j_service
 from src.services.ncbi_acquisition import NCBIAcquisition
@@ -455,6 +457,14 @@ async def get_projects():
         ))
             
     return projects
+
+@app.get("/api/owid/metadata/")
+async def get_owid_metadata():
+    json_file_path='/home/joh/Documentos/GIT/FPM-Tree/BioComp_UFF/workflow/owid_analysis_report_v2.json'
+    async with aiofiles.open(json_file_path, 'r', encoding='utf-8') as f:
+        contents = await f.read()
+        data = json.loads(contents)
+    return JSONResponse(content=data)
 
 @app.get("/api/tree/metadata/{project_name}", status_code=202)
 async def get_tree_metadata(project_name: str):
