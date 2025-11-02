@@ -22,7 +22,7 @@ const navLinks = [
     { label: 'Highlights', href: '#highlights' },
     { label: 'About Us', href: '#sobre' },
     // { label: 'FAQ', href: '#faq' },
-    // { label: 'Documentation', href: '/doc' },
+    { label: 'Documentation', href: '/doc' },
 ];
 
 

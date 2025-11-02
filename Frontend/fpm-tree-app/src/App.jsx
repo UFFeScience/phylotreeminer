@@ -61,7 +61,6 @@ function App() {
       key: "/doc",
       icon: <ReadOutlined />,
       label: <Link to="/doc">Documentation</Link>,
-      disabled: true,
     },
     {
       key: "/systemHealth",
