@@ -22,11 +22,16 @@ import { useNavigate } from "react-router-dom";
 
 const { Text } = Typography;
 
-const ProjectsTableView = ({ projects, statusMap, onProjectSelect, progressData = {} }) => {
+const ProjectsTableView = ({
+  projects,
+  statusMap,
+  onProjectSelect,
+  progressData = {},
+}) => {
   const [rerunLoading, setRerunLoading] = useState({});
 
+  const navigate = useNavigate(); 
   if (projects.length === 0) {
-    const navigate = useNavigate();
     return (
       <Empty
         description={
@@ -38,7 +43,7 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect, progressData 
         <Button
           type="primary"
           onClick={() => {
-            navigate("/workflow");
+            navigate("/workflow"); 
           }}
         >
           Create Now
@@ -162,14 +167,21 @@ const ProjectsTableView = ({ projects, statusMap, onProjectSelect, progressData 
       title: "Status",
       dataIndex: "status",
       key: "status",
-      filters: Object.entries(statusMap).map(([key, value]) => ({
-        text: value.text,
-        value: key,
-      })),
-      sorter: (a, b) => a.status.localeCompare(b.status),
-      onFilter: (value, record) => record.status === value,
+      filters: [
+        { text: "All", value: "all" },
+        ...Object.entries(statusMap).map(([key, value]) => ({
+          text: value.text,
+          value: key,
+        })),
+      ],
+      onFilter: (value, record) =>
+        value === "all" ? true : record.status === value,
       render: (status) => {
-        const statusInfo = statusMap[status] || {};
+        const statusInfo = statusMap[status] || {
+          color: "default",
+          icon: null,
+          text: status,
+        };
         return (
           <Tag color={statusInfo.color} icon={statusInfo.icon}>
             {statusInfo.text}

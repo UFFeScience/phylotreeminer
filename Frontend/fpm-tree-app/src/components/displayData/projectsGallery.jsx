@@ -79,6 +79,12 @@ const ProjectGallery = ({ onProjectSelect }) => {
             current_step: "N/A",
           },
         }));
+
+        const validStatuses = ["completed", "running", "idle", "failed"];
+        projectsData = projectsData.map(p => ({
+          ...p,
+          status: validStatuses.includes(p.status) ? p.status : "idle"
+        }));
       }
 
       setProjects(projectsData);
