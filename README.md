@@ -1,6 +1,6 @@
 # FPM-Tree
 
-[Official CLI workflow documentation](BioComp_UFF/README.md)
+[Official CLI workflow documentation](https://github.com/JohKemPo/BioComp_UFF/tree/main/README.md)
 
 # Initial Dependencies
 
