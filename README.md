@@ -5,7 +5,7 @@
 ⚠️ **To clone the repository and its submodules:** ⚠️
 
 ```bash
-git submodule update --init --recursive <URL-do-repositorio>
+git clone --recurse-submodules <URL-do-repositorio>
 ```
 
 
