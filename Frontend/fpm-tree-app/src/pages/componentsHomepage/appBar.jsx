@@ -20,7 +20,7 @@ import Logo from './logo';
 
 const navLinks = [
     { label: 'Highlights', href: '#highlights' },
-    { label: 'About Us', href: '#sobre' },
+    { label: 'About', href: '#sobre' },
     // { label: 'FAQ', href: '#faq' },
     { label: 'Documentation', href: '/doc' },
 ];

@@ -669,10 +669,10 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
                     </Button>
                     <Button
                       icon={<BarChartOutlined />}
-                      type={showAnalysis ? "primary" : "default"}
+                      type={showAnalysis ? "default" : "primary"}
                       onClick={togglePatternAnalysis}
                     >
-                      {showAnalysis ? "Hide Analysis" : "Deep Analysis"}
+                      {showAnalysis ? "Deep Analysis" : "Hide Analysis"}
                     </Button>
                   </Space>
                 )}

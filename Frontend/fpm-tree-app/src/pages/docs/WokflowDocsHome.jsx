@@ -369,7 +369,7 @@ const PhyloTreeMinerDocs = () => {
             <Title level={3}>Why PhyloTreeMiner is Essential?</Title>
             <Paragraph>
               In a world with biological data growing exponentially,
-              traditional tools become inadequate. PhyloTreeMiner
+              traditional tools become inadequate. <b><span style={{color:colors.primary}}>PhyloTreeMiner </span></b>
               represents the{" "}
               <Text strong>next generation of phylogenetic analysis</Text>, where
               methodological robustness, computational scalability and
@@ -409,20 +409,16 @@ const PhyloTreeMinerDocs = () => {
                 style={{ marginBottom: 24 }}
                 type="inner"
               >
-                <List
-                  bordered
-                  dataSource={[
-                    "Access the WebApp through your browser",
-                    "Navigate to Workflow Settings to create a new project",
-                    "Configure your analysis parameters in three simple steps",
-                    "Select your dataset or download from NCBI",
-                    "Review and launch your analysis",
+                <Steps
+                  // current={1}
+                  labelPlacement="vertical"
+                  items={[
+                    {description:<p style={{textAlign:'left'}}>Navigate to Workflow Settings to create a new project</p>},
+                    {description:<p style={{textAlign:'left'}}>Configure your analysis parameters in three simple steps</p>},
+                    {description:<p style={{textAlign:'left'}}>Select your dataset or download from NCBI</p>},
+                    {description:<p style={{textAlign:'left'}}>Review and launch your analysis</p>},
                   ]}
-                  renderItem={(item) => (
-                    <List.Item>
-                      <Text strong>{item}</Text>
-                    </List.Item>
-                  )}
+                  
                 />
               </Card>
 
@@ -464,23 +460,18 @@ const PhyloTreeMinerDocs = () => {
               />
 
               <Steps
-                current={0}
-                direction="vertical"
                 items={[
                   {
-                    title: "Step 1: Workflow Configuration",
+                    title: "Workflow Configuration",
                     description: "Set the core parameters for tree and subtree construction",
-                    status: "process",
                   },
                   {
-                    title: "Step 2: Dataset Selection",
+                    title: "Dataset Selection",
                     description: "Choose existing data, upload files, or search NCBI",
-                    status: "wait",
                   },
                   {
-                    title: "Step 3: Review and Start",
+                    title: "Review and Start",
                     description: "Confirm settings and launch the analysis",
-                    status: "wait",
                   },
                 ]}
               />
@@ -573,12 +564,12 @@ const PhyloTreeMinerDocs = () => {
                 />
               </Card>
 
-              <Alert
+              {/* <Alert
                 message="Pro Tip"
                 description="Use the 'Need Help?' button for interactive guidance through each configuration section"
                 type="info"
                 showIcon
-              />
+              /> */}
             </div>
           ),
         },
@@ -706,7 +697,7 @@ const PhyloTreeMinerDocs = () => {
 
               <Alert
                 message="Final Verification"
-                description="Review all settings before starting the computational workflow"
+                description="Review all settings before starting the workflow"
                 type="warning"
                 showIcon
                 style={{ marginBottom: 24 }}
@@ -1930,7 +1921,7 @@ conda activate phylotreeminer`}
       <Layout style={{ borderRadius: 8 }}>
         <Sider
           width={300}
-          style={{ backgroundColor: "#ffffff" }}
+          style={{ backgroundColor: "#ffffff", overflow: 'auto' }}
           trigger={null}
         >
           <Menu
