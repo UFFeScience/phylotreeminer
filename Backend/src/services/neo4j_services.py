@@ -5,9 +5,9 @@ from neo4j.graph import Node, Relationship, Path
 
 class Neo4jService:
     def __init__(self, uri: str = None, username: str = None, password: str = None):
-        self.uri = uri or os.getenv('NEO4J_URI', 'neo4j+s://121438fe.databases.neo4j.io')
+        self.uri = uri or os.getenv('NEO4J_URI', 'bolt://localhost:7687')
         self.username = username or os.getenv('NEO4J_USERNAME', 'neo4j')
-        self.password = password or os.getenv('NEO4J_PASSWORD', 'E54qKFqiFkMwjNerJ_IfvmjFfhIbTYWXNDoBY5vQ2II')
+        self.password = password or os.getenv('NEO4J_PASSWORD')
         self.driver = None
         self.connected = False
 
@@ -27,10 +27,13 @@ class Neo4jService:
         if self.driver:
             await self.driver.close()
 
-    async def execute_query(self, query: str, parameters: Dict = None) -> List[Dict[str, Any]]:
+    async def execute_query(self, query: str, parameters: Dict = None, user_id: str = None) -> List[Dict[str, Any]]:
         """Executa uma consulta Cypher assincronamente."""
         if not self.connected:
             return [] 
+        
+        if parameters is None: parameters = {}
+        parameters['user_id'] = user_id
         
         async with self.driver.session() as session:
             result = await session.run(query, parameters or {})
@@ -63,7 +66,7 @@ class Neo4jService:
         
         return results
 
-    async def get_graph_data(self, query: str = None, limit: int = 100) -> Dict[str, Any]:
+    async def get_graph_data(self, query: str = None, limit: int = 100, parameters: Dict = None) -> Dict[str, Any]:
         """
         Retorna dados do grafo formatados para visualização.
         Esta versão é mais robusta e processa qualquer tipo de retorno 
@@ -79,7 +82,7 @@ class Neo4jService:
         edges = {}
 
         async with self.driver.session() as session:
-            result = await session.run(query)
+            result = await session.run(query, parameters or {})
             
             async for record in result:
                 for value in record.values():
