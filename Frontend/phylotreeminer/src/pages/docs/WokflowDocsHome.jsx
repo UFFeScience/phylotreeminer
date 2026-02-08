@@ -3,6 +3,7 @@ import {
   Layout,
   Menu,
   Typography,
+  Descriptions,
   Divider,
   Input,
   List,
@@ -14,7 +15,7 @@ import {
   Alert,
   Tag,
   Button,
-  Steps
+  Steps,
 } from "antd";
 import {
   HomeOutlined,
@@ -24,7 +25,7 @@ import {
   AppstoreOutlined,
   ToolOutlined,
 } from "@ant-design/icons";
-import Logo from '../../pages/componentsHomepage/logo'
+import Logo from "../../pages/componentsHomepage/logo";
 import { colors } from "../../themes";
 
 const { Header, Sider, Content } = Layout;
@@ -50,33 +51,34 @@ const PhyloTreeMinerDocs = () => {
         <div>
           <div style={{ textAlign: "center", marginBottom: 40 }}>
             <div
-                className="logo-container"
-                style={{
-                  height: "94px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "0 10px",
-                  backgroundColor: colors.white,
-                }}
-              >
-                <Logo size="50px" />
-                {!collapsed && (
-                  <Title
-                    level={8}
-                    style={{
-                      color: colors.primary,
-                      marginBottom: 0,
-                      marginLeft: "12px",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    PhyloTreeMiner
-                  </Title>
-                )}
-              </div>
+              className="logo-container"
+              style={{
+                height: "94px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 10px",
+                backgroundColor: colors.white,
+              }}
+            >
+              <Logo size="50px" />
+              {!collapsed && (
+                <Title
+                  level={8}
+                  style={{
+                    color: colors.primary,
+                    marginBottom: 0,
+                    marginLeft: "12px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  PhyloTreeMiner
+                </Title>
+              )}
+            </div>
             <Title level={3} type="secondary">
-              Parallel Identification of Frequent Subtrees in Phylogenetic Analyses
+              Parallel Identification of Frequent Subtrees in Phylogenetic
+              Analyses
             </Title>
           </div>
 
@@ -88,10 +90,10 @@ const PhyloTreeMinerDocs = () => {
             }}
           >
             <Paragraph style={{ fontSize: "16px", margin: 0 }}>
-              <strong>An advanced computational platform</strong> for
-              automating large-scale phylogenetic analysis, providing
-              a systematic, parallel, and reproducible solution to identify
-              robust evolutionary patterns.
+              <strong>An advanced computational platform</strong> for automating
+              large-scale phylogenetic analysis, providing a systematic,
+              parallel, and reproducible solution to identify robust
+              evolutionary patterns.
             </Paragraph>
           </Card>
 
@@ -99,11 +101,10 @@ const PhyloTreeMinerDocs = () => {
 
           <Title level={2}>Main Objective</Title>
           <Paragraph>
-            Facing the{" "}
-            <Text strong>exponential growth of biological data</Text> and the
-            capacity to generate increasingly larger phylogenetic trees, a new
-            challenge arises: how to extract reliable knowledge from thousands
-            of trees that can be generated from the same dataset.
+            Facing the <Text strong>exponential growth of biological data</Text>{" "}
+            and the capacity to generate increasingly larger phylogenetic trees,
+            a new challenge arises: how to extract reliable knowledge from
+            thousands of trees that can be generated from the same dataset.
           </Paragraph>
 
           <Alert
@@ -117,12 +118,10 @@ const PhyloTreeMinerDocs = () => {
           <Title level={2}>🔍 The Problem: Phylogenetic Uncertainty</Title>
 
           <Card style={{ marginBottom: 16 }}>
-            <Title level={4}>
-              Why? The Methodological Choice Challenge
-            </Title>
+            <Title level={4}>Why? The Methodological Choice Challenge</Title>
             <Paragraph>
-              Building a phylogenetic tree is not a unique process.
-              There are multiple philosophies and methods:
+              Building a phylogenetic tree is not a unique process. There are
+              multiple philosophies and methods:
             </Paragraph>
             <List
               dataSource={[
@@ -165,11 +164,10 @@ const PhyloTreeMinerDocs = () => {
             style={{ marginBottom: 24 }}
           >
             <Paragraph>
-              A pattern (clade) that is consistently identified by methods
-              with completely different mathematical and statistical premises
-              is, by definition, a pattern of{" "}
-              <Text strong>very high confidence</Text>, and not an artifact of a
-              single method.
+              A pattern (clade) that is consistently identified by methods with
+              completely different mathematical and statistical premises is, by
+              definition, a pattern of <Text strong>very high confidence</Text>,
+              and not an artifact of a single method.
             </Paragraph>
           </Card>
 
@@ -249,10 +247,8 @@ const PhyloTreeMinerDocs = () => {
                 style={{ height: "100%" }}
               >
                 <Paragraph>
-                  <strong>
-                    Automated data acquisition and enrichment
-                  </strong>
-                  . Direct query to NCBI database for:
+                  <strong>Automated data acquisition and enrichment</strong>.
+                  Direct query to NCBI database for:
                 </Paragraph>
                 <List
                   size="small"
@@ -275,9 +271,8 @@ const PhyloTreeMinerDocs = () => {
                 style={{ height: "100%" }}
               >
                 <Paragraph>
-                  <strong>Efficient large-scale mining</strong>. Makes
-                  feasible the comparison of thousands of trees and millions of
-                  subtrees:
+                  <strong>Efficient large-scale mining</strong>. Makes feasible
+                  the comparison of thousands of trees and millions of subtrees:
                 </Paragraph>
                 <List
                   size="small"
@@ -297,8 +292,8 @@ const PhyloTreeMinerDocs = () => {
                 style={{ height: "100%" }}
               >
                 <Paragraph>
-                  <strong>Real-time epidemiological contextualization</strong>
-                  . Connects phylogenetic patterns with real-world data:
+                  <strong>Real-time epidemiological contextualization</strong>.
+                  Connects phylogenetic patterns with real-world data:
                 </Paragraph>
                 <List
                   size="small"
@@ -331,8 +326,8 @@ const PhyloTreeMinerDocs = () => {
                 <div style={{ fontSize: "24px", marginBottom: 8 }}>🌍</div>
                 <Title level={4}>Geographical Analysis</Title>
                 <Paragraph>
-                  Lineage tracking by region, identification of dispersal
-                  routes and evolutionary hotspots
+                  Lineage tracking by region, identification of dispersal routes
+                  and evolutionary hotspots
                 </Paragraph>
               </Card>
             </Col>
@@ -341,8 +336,8 @@ const PhyloTreeMinerDocs = () => {
                 <div style={{ fontSize: "24px", marginBottom: 8 }}>📅</div>
                 <Title level={4}>Temporal Analysis</Title>
                 <Paragraph>
-                  Monitoring emergence and decline of lineages over
-                  time, detecting evolutionary trends
+                  Monitoring emergence and decline of lineages over time,
+                  detecting evolutionary trends
                 </Paragraph>
               </Card>
             </Col>
@@ -368,11 +363,14 @@ const PhyloTreeMinerDocs = () => {
           >
             <Title level={3}>Why PhyloTreeMiner is Essential?</Title>
             <Paragraph>
-              In a world with biological data growing exponentially,
-              traditional tools become inadequate. <b><span style={{color:colors.primary}}>PhyloTreeMiner </span></b>
+              In a world with biological data growing exponentially, traditional
+              tools become inadequate.{" "}
+              <b>
+                <span style={{ color: colors.primary }}>PhyloTreeMiner </span>
+              </b>
               represents the{" "}
-              <Text strong>next generation of phylogenetic analysis</Text>, where
-              methodological robustness, computational scalability and
+              <Text strong>next generation of phylogenetic analysis</Text>,
+              where methodological robustness, computational scalability and
               epidemiological contextualization come together to provide
               reliable and actionable insights for research and public health.
             </Paragraph>
@@ -400,8 +398,9 @@ const PhyloTreeMinerDocs = () => {
               />
 
               <Paragraph>
-                The PhyloTreeMiner WebApp provides a user-friendly interface to configure, 
-                manage, and execute phylogenetic analysis workflows without needing command-line expertise.
+                The PhyloTreeMiner WebApp provides a user-friendly interface to
+                configure, manage, and execute phylogenetic analysis workflows
+                without needing command-line expertise.
               </Paragraph>
 
               <Card
@@ -413,32 +412,58 @@ const PhyloTreeMinerDocs = () => {
                   // current={1}
                   labelPlacement="vertical"
                   items={[
-                    {description:<p style={{textAlign:'left'}}>Navigate to Workflow Settings to create a new project</p>},
-                    {description:<p style={{textAlign:'left'}}>Configure your analysis parameters in three simple steps</p>},
-                    {description:<p style={{textAlign:'left'}}>Select your dataset or download from NCBI</p>},
-                    {description:<p style={{textAlign:'left'}}>Review and launch your analysis</p>},
+                    {
+                      description: (
+                        <p style={{ textAlign: "left" }}>
+                          Navigate to Workflow Settings to create a new project
+                        </p>
+                      ),
+                    },
+                    {
+                      description: (
+                        <p style={{ textAlign: "left" }}>
+                          Configure your analysis parameters in three simple
+                          steps
+                        </p>
+                      ),
+                    },
+                    {
+                      description: (
+                        <p style={{ textAlign: "left" }}>
+                          Select your dataset or download from NCBI
+                        </p>
+                      ),
+                    },
+                    {
+                      description: (
+                        <p style={{ textAlign: "left" }}>
+                          Review and launch your analysis
+                        </p>
+                      ),
+                    },
                   ]}
-                  
                 />
               </Card>
 
               <Title level={3}>Accessing the WebApp</Title>
               <Paragraph>
-                To start using the PhyloTreeMiner WebApp, simply access the workflow configuration page:
+                To start using the PhyloTreeMiner WebApp, simply access the
+                workflow configuration page:
               </Paragraph>
 
               <Card style={{ marginBottom: 16 }}>
                 <div style={{ textAlign: "center", padding: "16px" }}>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     size="large"
-                    onClick={() => window.location.href = '/workflow'}
+                    onClick={() => (window.location.href = "/workflow")}
                     icon={<RocketOutlined />}
                   >
                     Go to Workflow Settings
                   </Button>
                   <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
-                    Or navigate to: <Text code>/workflow</Text> in the sidebar menu
+                    Or navigate to: <Text code>/workflow</Text> in the sidebar
+                    menu
                   </Paragraph>
                 </div>
               </Card>
@@ -463,11 +488,13 @@ const PhyloTreeMinerDocs = () => {
                 items={[
                   {
                     title: "Workflow Configuration",
-                    description: "Set the core parameters for tree and subtree construction",
+                    description:
+                      "Set the core parameters for tree and subtree construction",
                   },
                   {
                     title: "Dataset Selection",
-                    description: "Choose existing data, upload files, or search NCBI",
+                    description:
+                      "Choose existing data, upload files, or search NCBI",
                   },
                   {
                     title: "Review and Start",
@@ -551,7 +578,8 @@ const PhyloTreeMinerDocs = () => {
               <Card style={{ marginBottom: 24 }}>
                 <Title level={4}>Subtree Mining (Optional)</Title>
                 <Paragraph>
-                  When subtree mining is enabled, configure additional parameters:
+                  When subtree mining is enabled, configure additional
+                  parameters:
                 </Paragraph>
                 <List
                   size="small"
@@ -678,9 +706,20 @@ const PhyloTreeMinerDocs = () => {
                 message="NCBI Search Tips"
                 description={
                   <div>
-                    <p>Use <Text strong>[Organism]</Text> for species-specific searches</p>
-                    <p>Example: <Text code>"Zika virus[Organism] AND complete genome"</Text></p>
-                    <p>Leave 'Save As' empty for automatic naming based on species</p>
+                    <p>
+                      Use <Text strong>[Organism]</Text> for species-specific
+                      searches
+                    </p>
+                    <p>
+                      Example:{" "}
+                      <Text code>
+                        "Zika virus[Organism] AND complete genome"
+                      </Text>
+                    </p>
+                    <p>
+                      Leave 'Save As' empty for automatic naming based on
+                      species
+                    </p>
                   </div>
                 }
                 type="warning"
@@ -690,7 +729,7 @@ const PhyloTreeMinerDocs = () => {
           ),
         },
         reviewExecution: {
-          title: "Review & Execution",
+          title: "Review and Execution",
           content: (
             <div>
               <Title level={2}>Review and Launch Analysis</Title>
@@ -706,7 +745,8 @@ const PhyloTreeMinerDocs = () => {
               <Title level={3}>Step 3: Final Review</Title>
 
               <Paragraph>
-                Before launching your analysis, carefully review all configuration settings:
+                Before launching your analysis, carefully review all
+                configuration settings:
               </Paragraph>
 
               <Card style={{ marginBottom: 24 }}>
@@ -787,6 +827,65 @@ const PhyloTreeMinerDocs = () => {
 
               <Divider />
 
+              <Title level={3}>
+                Results Produced After Successful Completion
+              </Title>
+
+              <Paragraph>
+                After the workflow is completed, all results are organized in
+                the main output directory <Tag>projects</Tag>, following a standardized
+                structure to facilitate data location and analysis.
+              </Paragraph>
+
+              <Card
+                style={{ marginBottom: 24 }}
+                title="Output Structure and File Summary"
+              >
+                <Title level={5}>Summary of Key Results by Directory</Title>
+
+                <Descriptions
+                  bordered
+                  column={1}
+                  size="small"
+                  layout="horizontal"
+                >
+                  <Descriptions.Item label={<Text strong>Align</Text>}>
+                    Sequence alignment files (e.g., <Text code>.aln</Text>).
+                  </Descriptions.Item>
+
+                  <Descriptions.Item label={<Text strong>Trees</Text>}>
+                    <b>Complete phylogenetic trees</b> generated in{" "}
+                    <Text code>.nexus</Text> or <Text code>.nwk</Text>.
+                  </Descriptions.Item>
+                  <Descriptions.Item label={<Text strong>Subtrees</Text>}>
+                    Detailed <b>subtree</b> files in <Text code>.nexus</Text>.
+                  </Descriptions.Item>
+                  <Descriptions.Item label={<Text strong>outputs</Text>}>
+                    Contains <b>Metadata</b> (raw data, frequency supports,
+                    NCBI) in <Text code>.csv</Text>/<Text code>.json</Text>,
+                    <b>Logs</b> (<Text code>.log</Text>) and{" "}
+                    <b>Configuration</b> (<Text code>config_backup.json</Text>).
+                  </Descriptions.Item>
+                  <Descriptions.Item label={<Text strong>outputs/Plots</Text>}>
+                    <b>Visualizations</b> in <Text code>.png</Text> (support
+                    frequency graphs and distance heatmaps).
+                  </Descriptions.Item>
+                  <Descriptions.Item label={<Text strong>Neo4j Scripts</Text>}>
+                    <Text code>neo4j_commands_tree_dataset.cql</Text>: Commands
+                    to populate the <b>graph database</b>.
+                  </Descriptions.Item>
+                </Descriptions>
+
+                <Paragraph style={{ marginTop: 16 }}>
+                  <Text strong>Note about Neo4j:</Text> The file{" "}
+                  <Text code>neo4j_commands_tree_dataset.cql</Text> must be
+                  opened and the commands executed manually in the project
+                  explorer to start uploading information to the graph database.
+                </Paragraph>
+              </Card>
+
+              <Divider />
+
               <Card
                 style={{
                   backgroundColor: "#f6ffed",
@@ -795,15 +894,16 @@ const PhyloTreeMinerDocs = () => {
               >
                 <Title level={4}>Ready to Start?</Title>
                 <Paragraph>
-                  Once you've reviewed all settings and selected your dataset, 
-                  click the 'Start Workflow' button to begin your phylogenetic analysis. 
-                  The system will handle all computational steps automatically.
+                  Once you've reviewed all settings and selected your dataset,
+                  click the 'Start Workflow' button to begin your phylogenetic
+                  analysis. The system will handle all computational steps
+                  automatically.
                 </Paragraph>
                 <div style={{ textAlign: "center", marginTop: 16 }}>
-                  <Button 
-                    type="primary" 
+                  <Button
+                    type="primary"
                     size="large"
-                    onClick={() => window.location.href = '/workflow'}
+                    onClick={() => (window.location.href = "/workflow")}
                     icon={<RocketOutlined />}
                   >
                     Configure New Workflow
@@ -879,8 +979,8 @@ const PhyloTreeMinerDocs = () => {
                     style={{ height: "100%" }}
                   >
                     <Paragraph>
-                      <code>templates/config.json</code> defines all
-                      parameters for tree construction and subtree mining
+                      <code>templates/config.json</code> defines all parameters
+                      for tree construction and subtree mining
                     </Paragraph>
                   </Card>
                 </Col>
@@ -1232,7 +1332,7 @@ const PhyloTreeMinerDocs = () => {
                   description="This step may take several minutes the first time while Conda downloads all dependencies"
                   type="warning"
                   showIcon
-                  style={{marginTop: '8px'}}
+                  style={{ marginTop: "8px" }}
                 />
               </Card>
 
@@ -1394,7 +1494,8 @@ const PhyloTreeMinerDocs = () => {
                 style={{ marginBottom: 16 }}
               >
                 <Paragraph>
-                  Create and activate the Conda environment from environment.yml:
+                  Create and activate the Conda environment from
+                  environment.yml:
                 </Paragraph>
                 <Card>
                   <pre
@@ -1558,8 +1659,8 @@ conda activate phylotreeminer`}
                       <strong>Method:</strong> Multiple alignment using fast
                       Fourier transform
                       <br />
-                      <strong>Use Cases:</strong> Large datasets,
-                      faster execution
+                      <strong>Use Cases:</strong> Large datasets, faster
+                      execution
                       <br />
                       <strong>Configuration:</strong> align_method: "mafft"
                     </Paragraph>
@@ -1645,7 +1746,8 @@ conda activate phylotreeminer`}
                       <strong>Use Cases:</strong> Fast construction, large
                       datasets
                       <br />
-                      <strong>Configuration:</strong> construct_tree_method: "nj"
+                      <strong>Configuration:</strong> construct_tree_method:
+                      "nj"
                     </Paragraph>
                   </Card>
                 </Col>
@@ -1773,10 +1875,8 @@ conda activate phylotreeminer`}
           ),
         },
       },
-    }
+    },
   };
-
-
 
   const navigateTo = (sectionKey, subsectionKey = null) => {
     if (sectionKey === "home") {
@@ -1921,7 +2021,7 @@ conda activate phylotreeminer`}
       <Layout style={{ borderRadius: 8 }}>
         <Sider
           width={300}
-          style={{ backgroundColor: "#ffffff", overflow: 'auto' }}
+          style={{ backgroundColor: "#ffffff", overflow: "auto" }}
           trigger={null}
         >
           <Menu
@@ -1947,12 +2047,11 @@ conda activate phylotreeminer`}
               margin: 0,
               minHeight: 280,
               borderRadius: 8,
-              overflow: 'auto',
-              maxHeight:'750px',
+              overflow: "auto",
+              maxHeight: "750px",
               boxShadow:
                 "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)",
             }}
-          
           >
             <Breadcrumb style={{ marginBottom: "24px" }}>
               {breadcrumbPath.map((item, index) => (

@@ -122,8 +122,6 @@ const CQLExecutor = ({
     const blocks = parseCQLBlocks(content);
     setCqlBlocks(blocks);
 
-    
-
     console.log(`Parsed blocks: ${blocks.length} commands found`);
 
     setExecutionStats((prev) => ({
@@ -320,7 +318,7 @@ const CQLExecutor = ({
         inSingleQuote = !inSingleQuote;
       } else if (char === '"' && !inSingleQuote) {
         inDoubleQuote = !inDoubleQuote;
-      } else if (char === ";" && !inSingleQuote && !inDoubleQuote) {
+      } else if (char === ");" && !inSingleQuote && !inDoubleQuote) {
         const block = currentBlock.trim();
         if (block.length > 0) {
           blocks.push(block);
@@ -330,7 +328,7 @@ const CQLExecutor = ({
     }
 
     const lastBlock = currentBlock.trim();
-    if (lastBlock.length > 0 && lastBlock !== ";") {
+    if (lastBlock.length > 0 && lastBlock !== ");") {
       blocks.push(lastBlock);
     }
 
@@ -499,7 +497,7 @@ const CQLExecutor = ({
         );
         setTimeout(() => {
           executeNextCommand(notificationId, retryCount + 1);
-        }, 1000 * (retryCount + 1));
+        }, 10000 * (retryCount + 1));
 
         throw new Error(errorData.detail || `HTTP ${response.status}`);
       }
@@ -529,7 +527,7 @@ const CQLExecutor = ({
         };
 
         updateNotification(notificationId, {
-          progress: newStats.progress, 
+          progress: newStats.progress,
           message: `Executing CQL - ${blockIndex + 1}/${cqlBlocks.length}`,
           description: (
             <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
@@ -563,7 +561,7 @@ const CQLExecutor = ({
           ),
         });
 
-        return newStats; 
+        return newStats;
       });
     } catch (error) {
       if (error.name === "AbortError") {
@@ -941,6 +939,32 @@ const CQLExecutor = ({
             />
           )}
         </div>
+
+        {isExecuting && (
+          <Alert
+            message={
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {/* <Text strong>
+                  Aguarde a execução completa dos comandos CQL. Após alimentar o
+                  banco de dados as consultas poderao ser feitas no termianl{" "}
+                  <Tag>Neo4j Visualizer</Tag>
+                </Text> */}
+                <Text>
+                  Please wait! The execution of the CQL commands is currently in
+                  progress.
+                
+                  Once the database has been fully populated, you will be able
+                  to perform your queries directly within the <Tag>Neo4j Visualizer</Tag>
+                  terminal.
+                </Text>
+              </Space>
+            }
+            type="info"
+            showIcon
+            style={{ marginTop: "8px" }}
+            closable
+          />
+        )}
 
         {cqlBlocks.length > 0 && (
           <Card
