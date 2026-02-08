@@ -28,6 +28,7 @@ import {
   LoadingOutlined,
 } from "@ant-design/icons";
 import { useNotification } from "../contexts/NotificationContext";
+import { useUser } from "../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
 
 const { Title, Text } = Typography;
@@ -60,7 +61,7 @@ const CQLExecutor = ({
   });
   const [cqlBlocks, setCqlBlocks] = useState([]);
   const [executionDetails, setExecutionDetails] = useState([]);
-
+  const { userId } = useUser();
   const navigate = useNavigate();
   const abortControllerRef = useRef(null);
   const executionQueueRef = useRef([]);
@@ -154,8 +155,8 @@ const CQLExecutor = ({
       prev.map((detail, idx) =>
         idx === commandIndex
           ? { ...detail, status: "executing", error: null, result: null }
-          : detail
-      )
+          : detail,
+      ),
     );
 
     try {
@@ -169,6 +170,7 @@ const CQLExecutor = ({
         body: JSON.stringify({
           query: command,
           parameters: {},
+          user_id: userId,
         }),
       });
 
@@ -188,8 +190,8 @@ const CQLExecutor = ({
                 result: result,
                 timestamp: new Date(),
               }
-            : detail
-        )
+            : detail,
+        ),
       );
 
       setExecutionStats((prev) => ({
@@ -211,8 +213,8 @@ const CQLExecutor = ({
                 error: error.message,
                 timestamp: new Date(),
               }
-            : detail
-        )
+            : detail,
+        ),
       );
 
       message.error(`Retry failed for command ${commandIndex + 1}`);
@@ -318,17 +320,18 @@ const CQLExecutor = ({
         inSingleQuote = !inSingleQuote;
       } else if (char === '"' && !inSingleQuote) {
         inDoubleQuote = !inDoubleQuote;
-      } else if (char === ");" && !inSingleQuote && !inDoubleQuote) {
+      } 
+      else if (char === ";" && !inSingleQuote && !inDoubleQuote) {
         const block = currentBlock.trim();
         if (block.length > 0) {
           blocks.push(block);
         }
-        currentBlock = "";
+        currentBlock = ""; 
       }
     }
 
     const lastBlock = currentBlock.trim();
-    if (lastBlock.length > 0 && lastBlock !== ");") {
+    if (lastBlock.length > 0) {
       blocks.push(lastBlock);
     }
 
@@ -416,7 +419,7 @@ const CQLExecutor = ({
     console.log(
       "📋 Queue prepared:",
       executionQueueRef.current.length,
-      "commands"
+      "commands",
     );
 
     executeNextCommand(notificationId);
@@ -455,15 +458,15 @@ const CQLExecutor = ({
     console.log(
       `▶️ Executing command ${blockIndex + 1}/${
         executionQueueRef.current.length
-      }`
+      }`,
     );
 
     setExecutionDetails((prev) =>
       prev.map((detail, idx) =>
         idx === blockIndex
           ? { ...detail, status: "executing", timestamp: new Date() }
-          : detail
-      )
+          : detail,
+      ),
     );
 
     setExecutionStats((prev) => ({
@@ -485,6 +488,7 @@ const CQLExecutor = ({
         body: JSON.stringify({
           query: currentBlock,
           parameters: {},
+          user_id: userId,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -493,11 +497,14 @@ const CQLExecutor = ({
         const errorData = await response.json();
 
         console.log(
-          `🔄 Retrying command ${blockIndex + 1} (attempt ${retryCount + 1})`
+          `🔄 Retrying command ${blockIndex + 1} (attempt ${retryCount + 1})`,
         );
-        setTimeout(() => {
-          executeNextCommand(notificationId, retryCount + 1);
-        }, 10000 * (retryCount + 1));
+        setTimeout(
+          () => {
+            executeNextCommand(notificationId, retryCount + 1);
+          },
+          10000 * (retryCount + 1),
+        );
 
         throw new Error(errorData.detail || `HTTP ${response.status}`);
       }
@@ -514,8 +521,8 @@ const CQLExecutor = ({
                 result: result,
                 timestamp: new Date(),
               }
-            : detail
-        )
+            : detail,
+        ),
       );
 
       setExecutionStats((prev) => {
@@ -580,8 +587,8 @@ const CQLExecutor = ({
                 error: error.message,
                 timestamp: new Date(),
               }
-            : detail
-        )
+            : detail,
+        ),
       );
 
       setExecutionStats((prev) => {
@@ -643,7 +650,7 @@ const CQLExecutor = ({
       }, executionConfig.delayBetweenCommands);
     } else {
       console.log(
-        "⏸️ Execution paused or stopped, not scheduling next command"
+        "⏸️ Execution paused or stopped, not scheduling next command",
       );
     }
   };
@@ -670,7 +677,7 @@ const CQLExecutor = ({
         successRate:
           finalStats.totalBlocks > 0
             ? Math.round(
-                (finalStats.successfulBlocks / finalStats.totalBlocks) * 100
+                (finalStats.successfulBlocks / finalStats.totalBlocks) * 100,
               )
             : 0,
       },
@@ -706,7 +713,7 @@ const CQLExecutor = ({
               Success rate:{" "}
               {Math.round(
                 (executionStats.successfulBlocks / executionStats.totalBlocks) *
-                  100
+                  100,
               )}
               %
             </div>
@@ -715,7 +722,7 @@ const CQLExecutor = ({
         duration: 10,
       });
       message.success(
-        `Execution completed: ${executionStats.successfulBlocks}/${executionStats.totalBlocks} commands successful`
+        `Execution completed: ${executionStats.successfulBlocks}/${executionStats.totalBlocks} commands successful`,
       );
     }
 
@@ -951,10 +958,9 @@ const CQLExecutor = ({
                 </Text> */}
                 <Text>
                   Please wait! The execution of the CQL commands is currently in
-                  progress.
-                
-                  Once the database has been fully populated, you will be able
-                  to perform your queries directly within the <Tag>Neo4j Visualizer</Tag>
+                  progress. Once the database has been fully populated, you will
+                  be able to perform your queries directly within the{" "}
+                  <Tag>Neo4j Visualizer</Tag>
                   terminal.
                 </Text>
               </Space>
@@ -1081,12 +1087,13 @@ const CQLExecutor = ({
 
         {isExecuting &&
           executionDetails.some((d) => d.status !== "pending") && (
-            <Card size="small" title="Execution Details (last 10)">
+            <Card size="small" title="Execution Details" style={{overflow:'auto'}}>
               <List
                 size="small"
                 dataSource={executionDetails
                   .filter((d) => d.status !== "pending")
-                  .slice(-10)}
+                  // .slice(-10)
+                }
                 renderItem={(detail) => (
                   <List.Item>
                     <Space>
