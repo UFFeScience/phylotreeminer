@@ -115,7 +115,7 @@ const useGeoDataProcessing = (sequences) => {
       const processWithConcurrency = async (
         items,
         processor,
-        concurrency = 5,
+        concurrency = 1,
       ) => {
         const results = [];
         let index = 0;
@@ -128,6 +128,8 @@ const useGeoDataProcessing = (sequences) => {
           try {
             const result = await processor(item);
             results[currentIndex] = result;
+
+            await new Promise(resolve => setTimeout(resolve, 1100));
           } catch (error) {
             results[currentIndex] = { error, country: item };
             console.warn(`Error processing country ${item}:`, error);
@@ -150,7 +152,7 @@ const useGeoDataProcessing = (sequences) => {
             const coordinates = await getCachedCoordinates(country);
             return { country, coordinates };
           },
-          5,
+          1,
         );
 
         coordinatesResults.forEach((result) => {
@@ -276,11 +278,11 @@ const GeographicDistribution = ({ sequences }) => {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={16}>
           <div
-            style={{ height: "400px", borderRadius: "8px", overflow: "hidden" }}
+            style={{ height: "450px", borderRadius: "8px", overflow: "hidden" }}
           >
             <MapContainer
               center={[20, 0]}
-              zoom={2}
+              zoom={2.45}
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer
