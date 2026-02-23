@@ -73,84 +73,39 @@ const clearCountryCache = (country = null) => {
   }
 };
 
-const GeographicDistribution = ({ treeData }) => {
-  const [isClient, setIsClient] = useState(false);
+const useGeoDataProcessing = (sequences) => {
   const [geoData, setGeoData] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setIsClient(true);
-    createLeafletIcon();
-  }, []);
-
-  const extractAllSequences = useCallback(() => {
-    if (!treeData || treeData.length === 0) return [];
-
-    const extractFromNode = (node) => {
-      let sequences = [];
-
-      if (node.data_terminals && Array.isArray(node.data_terminals)) {
-        sequences = [...sequences, ...node.data_terminals];
-      }
-
-      if (
-        node.metadata &&
-        node.metadata.children &&
-        Array.isArray(node.metadata.children)
-      ) {
-        node.metadata.children.forEach((child) => {
-          sequences = [...sequences, ...extractFromNode(child)];
-        });
-      }
-
-      return sequences;
-    };
-
-    const allSequences = [];
-    const treeNodes = treeData[0];
-    let aux = Object.keys(treeNodes)[0];
-    let data = treeNodes[aux];
-    aux = Object.keys(treeNodes[aux]);
-    data = data[aux[0]];
-
-    allSequences.push(...extractFromNode(data));
-    return allSequences;
-  }, [treeData]);
-
-  useEffect(() => {
     const processGeoData = async () => {
-      setLoading(true);
-      const allSequences = extractAllSequences();
-      const countries = {};
+      if (!sequences || sequences.length === 0) {
+        setLoading(false);
+        return;
+      }
 
+      setLoading(true);
+      const countries = {};
       const uniqueCountries = new Set();
       const sequencesByCountry = {};
 
-      for (const sequence of allSequences) {
+      for (const sequence of sequences) {
         try {
-          const features = sequence.metadata?.features;
-          if (features && Array.isArray(features) && features.length > 0) {
-            const qualifiers = features[0]?.qualifiers;
-            const geoLoc = qualifiers?.geo_loc_name?.[0];
+          const { geoLoc, id, isolate, collectionDate, newick } = sequence;
 
-            if (geoLoc) {
-              uniqueCountries.add(geoLoc);
+          if (geoLoc && geoLoc !== "Unidentified") {
+            uniqueCountries.add(geoLoc);
 
-              if (!sequencesByCountry[geoLoc]) {
-                sequencesByCountry[geoLoc] = [];
-              }
-
-              const collectionDate = qualifiers?.collection_date?.[0];
-              const isolate =
-                qualifiers?.isolate?.[0] || qualifiers?.strain?.[0];
-
-              sequencesByCountry[geoLoc].push({
-                id: sequence.metadata.id,
-                isolate,
-                collectionDate,
-                newick: sequence.newick,
-              });
+            if (!sequencesByCountry[geoLoc]) {
+              sequencesByCountry[geoLoc] = [];
             }
+
+            sequencesByCountry[geoLoc].push({
+              id,
+              isolate,
+              collectionDate,
+              newick,
+            });
           }
         } catch (error) {
           console.warn("Error processing sequence:", sequence, error);
@@ -160,14 +115,13 @@ const GeographicDistribution = ({ treeData }) => {
       const processWithConcurrency = async (
         items,
         processor,
-        concurrency = 5
+        concurrency = 5,
       ) => {
         const results = [];
         let index = 0;
 
         const processNext = async () => {
           if (index >= items.length) return;
-
           const currentIndex = index++;
           const item = items[currentIndex];
 
@@ -178,28 +132,25 @@ const GeographicDistribution = ({ treeData }) => {
             results[currentIndex] = { error, country: item };
             console.warn(`Error processing country ${item}:`, error);
           }
-
           await processNext();
         };
 
         const workers = Array(Math.min(concurrency, items.length))
           .fill(null)
           .map(processNext);
-
         await Promise.all(workers);
         return results;
       };
 
       try {
         const countriesArray = Array.from(uniqueCountries);
-        
         const coordinatesResults = await processWithConcurrency(
           countriesArray,
           async (country) => {
             const coordinates = await getCachedCoordinates(country);
             return { country, coordinates };
           },
-          5 
+          5,
         );
 
         coordinatesResults.forEach((result) => {
@@ -220,10 +171,42 @@ const GeographicDistribution = ({ treeData }) => {
       }
     };
 
-    if (treeData) {
-      processGeoData();
+    processGeoData();
+  }, [sequences]);
+
+  const reloadCountryData = useCallback(async (country) => {
+    clearCountryCache(country);
+    setLoading(true);
+    try {
+      const coordinates = await getCachedCoordinates(country);
+      setGeoData((prev) => {
+        if (prev[country]) {
+          return {
+            ...prev,
+            [country]: { ...prev[country], coordinates: coordinates },
+          };
+        }
+        return prev;
+      });
+    } catch (error) {
+      console.error(`Error reloading country ${country}:`, error);
+    } finally {
+      setLoading(false);
     }
-  }, [treeData, extractAllSequences]);
+  }, []);
+
+  return { geoData, loading, reloadCountryData };
+};
+
+const GeographicDistribution = ({ sequences }) => {
+  const [isClient, setIsClient] = useState(false);
+  const { geoData, loading, reloadCountryData } =
+    useGeoDataProcessing(sequences);
+
+  useEffect(() => {
+    setIsClient(true);
+    createLeafletIcon();
+  }, []);
 
   const countryData = useMemo(() => {
     const data = Object.entries(geoData)
@@ -244,32 +227,6 @@ const GeographicDistribution = ({ treeData }) => {
       radius: calculateRadius(item.count, maxCount),
     }));
   }, [geoData]);
-
-  const reloadCountryData = useCallback(async (country) => {
-    clearCountryCache(country);
-    
-    setLoading(true);
-    try {
-      const coordinates = await getCachedCoordinates(country);
-      
-      setGeoData(prev => {
-        if (prev[country]) {
-          return {
-            ...prev,
-            [country]: {
-              ...prev[country],
-              coordinates: coordinates
-            }
-          };
-        }
-        return prev;
-      });
-    } catch (error) {
-      console.error(`Error reloading country ${country}:`, error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   if (!isClient) {
     return (
@@ -381,13 +338,13 @@ const GeographicDistribution = ({ treeData }) => {
                         <button
                           onClick={() => reloadCountryData(country.country)}
                           style={{
-                            marginLeft: '8px',
-                            padding: '2px 6px',
-                            fontSize: '10px',
-                            border: '1px solid #ddd',
-                            borderRadius: '3px',
-                            cursor: 'pointer',
-                            backgroundColor: '#f0f0f0'
+                            marginLeft: "8px",
+                            padding: "2px 6px",
+                            fontSize: "10px",
+                            border: "1px solid #ddd",
+                            borderRadius: "3px",
+                            cursor: "pointer",
+                            backgroundColor: "#f0f0f0",
                           }}
                           title="Recarregar coordenadas"
                         >

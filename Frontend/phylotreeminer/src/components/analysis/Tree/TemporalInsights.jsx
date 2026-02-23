@@ -2,29 +2,23 @@ import React, { useEffect, useState, useMemo } from "react";
 import { Card, Row, Col, Timeline, Tag, List, Statistic } from "antd";
 import { Line } from "@ant-design/charts";
 
-const TemporalInsights = ({ treeData }) => {
+const TemporalInsights = ({ sequences }) => {
   const extractDates = () => {
-    const allSequences = extractAllSequences(treeData);
     const dates = [];
 
-    allSequences.forEach((sequence) => {
-      const collectionDate =
-        // sequence?.metadata?.features[0]?.qualifiers?.collection_date?.[0];
-        sequence?.metadata?.annotations?.date.split('-')[2];
-      const geoLoc =
-        sequence?.metadata?.features[0]?.qualifiers?.geo_loc_name?.[0];
-      const isolate = sequence?.metadata?.features[0]?.qualifiers?.isolate?.[0];
+    (sequences || []).forEach((sequence) => {
+      const { collectionDate, geoLoc, isolate, id } = sequence;
 
       if (collectionDate) {
         const dateObj = parseDate(collectionDate);
-        
+
         if (dateObj) {
           dates.push({
             date: dateObj,
-            formattedDate: collectionDate,
+            formattedDate: collectionDate, // Usando a data string já tratada
             geoLoc,
             isolate,
-            id: sequence.metadata.id,
+            id,
             year: dateObj.getFullYear(),
             month: dateObj.getMonth() + 1,
           });
@@ -34,46 +28,6 @@ const TemporalInsights = ({ treeData }) => {
 
     return dates.sort((a, b) => a.date - b.date);
   };
-
-  const extractAllSequences = useMemo(() => {
-    const extractFromNode = (node) => {
-      let sequences = [];
-
-      if (node.data_terminals && Array.isArray(node.data_terminals)) {
-        sequences = [...sequences, ...node.data_terminals];
-      }
-
-      if (
-        node.metadata &&
-        node.metadata.children &&
-        Array.isArray(node.metadata.children)
-      ) {
-        node.metadata.children.forEach((child) => {
-          sequences = [...sequences, ...extractFromNode(child)];
-        });
-      }
-
-      return sequences;
-    };
-
-    return () => {
-      if (!treeData || treeData.length === 0) return [];
-
-      const allSequences = [];
-
-      const treeNodes = treeData[0];
-      let aux = Object.keys(treeNodes)[0];
-      let data = treeNodes[aux];
-      aux = Object.keys(treeNodes[aux]);
-      data = data[aux[0]];
-
-      allSequences.push(...extractFromNode(data));
-      //   Object.values(firstData).forEach((node) => {
-      //   });
-
-      return allSequences;
-    };
-  }, [treeData]);
 
   const parseDate = (dateString) => {
     try {
@@ -204,17 +158,16 @@ const TemporalInsights = ({ treeData }) => {
             />
           </Card>
 
-          <Card
-            title="Timeline"
-            size="small"
-            style={{ marginTop: 16}}
-          >
+          <Card title="Timeline" size="small" style={{ marginTop: 16 }}>
             <Timeline
               items={dates.slice(-100).map((item, index) => ({
                 children: (
                   <div>
-                    <strong> {item.month} /  {item.year}</strong>
-                    <div>{item.isolate ? `Isolate: ${item.isolate}` : ''}</div>
+                    <strong>
+                      {" "}
+                      {item.month} / {item.year}
+                    </strong>
+                    <div>{item.isolate ? `Isolate: ${item.isolate}` : ""}</div>
                     <Tag color="blue" size="small">
                       {item.geoLoc}
                     </Tag>

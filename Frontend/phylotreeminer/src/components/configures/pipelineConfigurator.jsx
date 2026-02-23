@@ -800,7 +800,7 @@ const PipelineConfigurator = () => {
               <Form.Item
                 name={["subtrees", "resume_infos"]}
                 valuePropName="checked"
-                initialValue={true}
+                initialValue={false}
               >
                 <Checkbox> Save Subtree Metadata</Checkbox>
               </Form.Item>

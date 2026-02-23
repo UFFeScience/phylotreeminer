@@ -90,11 +90,11 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     fetchMetadata(initialProjectName);
   }, [initialProjectName]);
 
-  useEffect(() => {
-    if (metadata && Object.keys(metadata).length > 0) {
-      fetchOWIDMetadata(metadata);
-    }
-  }, [metadata]);
+  // useEffect(() => {
+  //   if (metadata && Object.keys(metadata).length > 0) {
+  //     fetchOWIDMetadata(metadata);
+  //   }
+  // }, [metadata]);
 
   const fetchDirectoryContent = useCallback(async (path) => {
     if (directoryContentRef.current.path === path) return;

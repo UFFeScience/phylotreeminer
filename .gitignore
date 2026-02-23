@@ -5,3 +5,6 @@ projects/
 
 *.log
 *.pyc
+
+neo4j_data/*
+.env

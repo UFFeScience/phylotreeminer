@@ -33,6 +33,7 @@ import QueryResultTable from "./QueryResultTable";
 import JsonViewer from "./JsonViewer";
 import PhylogeneticQueriesDocumentation from "../../pages/docs/PhylogeneticQueriesDocumentation";
 import { useNotification } from "../../contexts/NotificationContext";
+import { useUser } from "../../contexts/UserContext";
 
 const { Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -48,7 +49,7 @@ const GraphVisualization = () => {
   const [predefinedQueries, setPredefinedQueries] = useState({});
   const [selectedNode, setSelectedNode] = useState(null);
   const [viewMode, setViewMode] = useState("initial");
-
+  const { userId } = useUser();
   const { addNotification } = useNotification();
 
   const [connectionDetails, setConnectionDetails] = useState({
@@ -338,11 +339,82 @@ const GraphVisualization = () => {
     }
   };
 
+
+  // Função auxiliar para injetar o filtro de UID na string da query
+  const injectUidFilter = (originalQuery, uid) => {
+    if (!originalQuery || !uid) return originalQuery;
+
+    let processedQuery = originalQuery.trim();
+
+    // 1. Regex Melhorado: Captura a Variável (grupo 1) E o Label/Tipo (grupo 2)
+    // Ex: MATCH (n:Tree) -> captura var='n', label='Tree'
+    // Ex: MATCH (n)      -> captura var='n', label=undefined
+    const matchRegex = /MATCH\s*\(\s*([a-zA-Z0-9_]+)(?:\s*:\s*([a-zA-Z0-9_]+))?.*?\)/i;
+    const match = processedQuery.match(matchRegex);
+
+    if (!match) {
+      console.warn("Could not auto-inject UID: MATCH pattern not found.");
+      return processedQuery;
+    }
+
+    const variableName = match[1]; // Ex: 'n', 't', 'm'
+    const label = match[2];        // Ex: 'Tree', 'Metadata', 'Subtree'
+
+    // --- LÓGICA DE PROTEÇÃO ---
+    // Só injetamos o UID se:
+    // 1. Não tiver label (ex: MATCH (n) -> assumimos risco ou filtramos por segurança)
+    // 2. Tiver label E for um dos tipos que possuem UID (Tree ou Subtree)
+    
+    const nodesWithUid = ['Tree', 'Subtree'];
+    
+    // Se temos um label definido e ele NÃO está na lista de permitidos (ex: Metadata),
+    // NÃO injetamos o filtro para evitar query inválida (m.uid não existe).
+    if (label && !nodesWithUid.includes(label)) {
+        console.warn(`Skipping UID injection for node type: :${label} (Property .uid does not exist on this node)`);
+        // Aqui retornamos a query original. 
+        // Nota: Isso significa que a query rodará sem filtro de usuário se o backend permitir,
+        // ou retornará erro se o backend exigir isolamento.
+        return processedQuery;
+    }
+    // ---------------------------
+
+    // 2. Verifica se já existe algum filtro de uid para não duplicar
+    if (processedQuery.includes(`${variableName}.uid`)) {
+        return processedQuery;
+    }
+
+    // 3. Constrói a cláusula de filtro
+    const filterClause = `${variableName}.uid = '${uid}'`;
+
+    // 4. Injeta o WHERE (Lógica mantida igual à sua anterior)
+    const whereRegex = /(\bWHERE\b)/i;
+    
+    if (whereRegex.test(processedQuery)) {
+      // Cenario A: Já existe WHERE
+      processedQuery = processedQuery.replace(whereRegex, `WHERE ${filterClause} AND`);
+    } else {
+      // Cenario B: Não tem WHERE
+      const returnOrWithRegex = /(\bRETURN\b|\bWITH\b)/i;
+      
+      if (returnOrWithRegex.test(processedQuery)) {
+        // Insere antes do RETURN/WITH e adiciona quebra de linha para clareza
+        processedQuery = processedQuery.replace(returnOrWithRegex, `WHERE ${filterClause} \n$1`);
+      } else {
+        processedQuery = `${processedQuery} WHERE ${filterClause}`;
+      }
+    }
+
+    return processedQuery;
+  };
+
+
   const executeQuery = async (query, isGraphQuery = false) => {
     if (!query.trim()) return;
     setIsLoading(true);
     setQueryResults(null);
     setSelectedNode(null);
+    
+    const finalQuery = injectUidFilter(query, userId);
     if (isGraphQuery) setGraphData({ nodes: [], edges: [] });
 
     setViewMode(isGraphQuery ? "graph" : "table");
@@ -351,8 +423,8 @@ const GraphVisualization = () => {
       const endpoint = isGraphQuery ? "/api/neo4j/graph" : "/api/neo4j/query";
       const response = await fetch(`http://localhost:8000${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        headers: { "Content-Type": "application/json", "X-User-ID": userId },
+        body: JSON.stringify({ query: finalQuery }),
       });
       if (!response.ok) throw new Error(`Erro na API: ${response.statusText}`);
       const data = await response.json();
@@ -499,7 +571,7 @@ const GraphVisualization = () => {
                 paddingRight: "10px",
               }}
             >
-              <Space direction="vertical" style={{ width: "100%" }}>
+              <Space direction="vertical" style={{ width: "100%", maxHeight: "400px" }}>
                 {Object.entries(predefinedQueries).map(([key, query]) => (
                   <Card
                     key={key}

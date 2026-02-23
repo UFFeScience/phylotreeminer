@@ -1087,7 +1087,7 @@ const CQLExecutor = ({
 
         {isExecuting &&
           executionDetails.some((d) => d.status !== "pending") && (
-            <Card size="small" title="Execution Details" style={{overflow:'auto'}}>
+            <Card size="small" title="Execution Details" style={{overflow:'auto', maxHeight: '400px'}}>
               <List
                 size="small"
                 dataSource={executionDetails

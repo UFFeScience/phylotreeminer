@@ -9,8 +9,10 @@ import {
   Dropdown,
   Menu,
   Empty,
+  Tooltip,
   message,
 } from "antd";
+
 import {
   MoreOutlined,
   LoadingOutlined,
@@ -19,6 +21,7 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { width } from "@mui/system";
 
 const { Text } = Typography;
 
@@ -30,7 +33,7 @@ const ProjectsTableView = ({
 }) => {
   const [rerunLoading, setRerunLoading] = useState({});
 
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   if (projects.length === 0) {
     return (
       <Empty
@@ -43,7 +46,7 @@ const ProjectsTableView = ({
         <Button
           type="primary"
           onClick={() => {
-            navigate("/workflow"); 
+            navigate("/workflow");
           }}
         >
           Create Now
@@ -55,7 +58,7 @@ const ProjectsTableView = ({
   const handleRerunProject = async (projectName) => {
     try {
       const checkResponse = await fetch(
-        `http://localhost:8000/projects/${projectName}/can-rerun`
+        `http://localhost:8000/projects/${projectName}/can-rerun`,
       );
       const checkData = await checkResponse.json();
 
@@ -74,7 +77,7 @@ const ProjectsTableView = ({
         `http://localhost:8000/projects/${projectName}/rerun`,
         {
           method: "POST",
-        }
+        },
       );
 
       if (response.ok) {
@@ -158,6 +161,7 @@ const ProjectsTableView = ({
       title: "Project Name",
       dataIndex: "name",
       key: "name",
+      width: 400,
       sorter: (a, b) => a.name.localeCompare(b.name),
       render: (text, record) => (
         <a onClick={() => onProjectSelect(record.name)}>{text}</a>
@@ -167,6 +171,7 @@ const ProjectsTableView = ({
       title: "Status",
       dataIndex: "status",
       key: "status",
+      width: 180,
       filters: [
         { text: "All", value: "all" },
         ...Object.entries(statusMap).map(([key, value]) => ({
@@ -221,6 +226,7 @@ const ProjectsTableView = ({
       title: "Duration",
       dataIndex: "duration",
       key: "duration",
+      width: 150,
       sorter: (a, b) => (a.duration || 0) - (b.duration || 0),
       render: (totalSeconds) => {
         if (totalSeconds === null || totalSeconds === undefined) {
@@ -239,19 +245,39 @@ const ProjectsTableView = ({
     {
       title: "Input",
       key: "input",
-      render: (_, record) => (
-        <Text>
-          <FileOutlined style={{ marginRight: 8 }} />
-          {record.details?.input_file || "..."}
-        </Text>
-      ),
+      ellipsis: {
+        showTitle: false,
+      },
+      render: (_, record) => {
+        const text = record.details?.input_file || "...";
+        const truncated =
+          text.length > 10 ? `${text.slice(0, 10)}...` : text;
+        return (
+          <Tooltip title={text}>
+            <div className="prompt-cell">
+              <FileOutlined style={{ marginRight: 8 }} />
+              {truncated}
+            </div>
+          </Tooltip>
+        );
+      }
     },
     {
       title: "Current Stage",
       key: "step",
-      render: (_, record) => (
-        <Text>{record.details?.current_step || "..."}</Text>
-      ),
+      render: (_, record) => {
+        const text = record.details?.current_step || "...";
+        const truncated =
+          text.length > 25 ? `${text.slice(0, 25)}...` : text;
+        return (
+          <Tooltip title={text}>
+            <div className="prompt-cell">
+              <FileOutlined style={{ marginRight: 8 }} />
+              {truncated}
+            </div>
+          </Tooltip>
+        );
+      }
     },
     {
       title: "Actions",

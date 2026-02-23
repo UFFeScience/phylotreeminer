@@ -367,28 +367,28 @@ const OWIDAnalysisDashboard = ({ analysisData }) => {
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
   const sequenceColumns = [
-    {
-      title: "Sequence ID",
-      dataIndex: "id",
-      key: "id",
-      sorter: (a, b) => a.id.localeCompare(b.id),
-      fixed: "left",
-      width: 150,
-    },
-    {
-      title: (
-        <Tooltip title="Phylogenetic support value from FPMax analysis">
-          Support <InfoCircleOutlined />
-        </Tooltip>
-      ),
-      dataIndex: "support",
-      key: "support",
-      sorter: (a, b) => a.support - b.support,
-      render: (support, record) => (
-        <Tag color={record.supportColor}>{formatSupport(support)}</Tag>
-      ),
-      width: 100,
-    },
+    // {
+    //   title: "Sequence ID",
+    //   dataIndex: "id",
+    //   key: "id",
+    //   sorter: (a, b) => a.id.localeCompare(b.id),
+    //   fixed: "left",
+    //   width: 150,
+    // },
+    // {
+    //   title: (
+    //     <Tooltip title="Phylogenetic support value from FPMax analysis">
+    //       Support <InfoCircleOutlined />
+    //     </Tooltip>
+    //   ),
+    //   dataIndex: "support",
+    //   key: "support",
+    //   sorter: (a, b) => a.support - b.support,
+    //   render: (support, record) => (
+    //     <Tag color={record.supportColor}>{formatSupport(support)}</Tag>
+    //   ),
+    //   width: 100,
+    // },
     {
       title: "Country",
       dataIndex: "country",
@@ -692,39 +692,7 @@ const OWIDAnalysisDashboard = ({ analysisData }) => {
             </ResponsiveContainer>
           </Card>
         </Col>
-        {aggregatedData.supportInsights.length != 0 && (
-          <Col xs={32} lg={24}>
-            <Card size="small" title="Support vs Cases Correlation">
-              <ResponsiveContainer width="100%" height={300}>
-                <ScatterChart data={aggregatedData.supportInsights}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="cases"
-                    type="number"
-                    name="Cases"
-                    tickFormatter={formatNumber}
-                  />
-                  <YAxis
-                    dataKey="support"
-                    type="number"
-                    name="Support"
-                    // domain={[0, 0.3]}
-                  />
-                  <ZAxis range={[100, 100]} />
-                  <RechartsTooltip
-                    formatter={(value, name) => [
-                      name === "support"
-                        ? formatSupport(value)
-                        : formatNumber(value),
-                      name,
-                    ]}
-                  />
-                  <Scatter name="Sequences" fill="#8884d8" />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
-        )}
+        
       </Row>
 
       {/* {aggregatedData.supportEpiCorrelation?.country_analysis && (
@@ -803,7 +771,7 @@ const OWIDAnalysisDashboard = ({ analysisData }) => {
       )} */}
 
       <Row gutter={16} style={{ marginBottom: 24, marginTop: 16 }}>
-        <Col xs={24} lg={12}>
+        {/* <Col xs={24} lg={12}>
           <Card
             title={
               <Space>
@@ -830,7 +798,41 @@ const OWIDAnalysisDashboard = ({ analysisData }) => {
               </BarChart>
             </ResponsiveContainer>
           </Card>
-        </Col>
+        </Col> */}
+
+        {aggregatedData.supportInsights.length != 0 && (
+          <Col  xs={24} lg={12}>
+            <Card size="small" title="Support vs Cases Correlation">
+              <ResponsiveContainer width="100%" height={300}>
+                <ScatterChart data={aggregatedData.supportInsights}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="cases"
+                    type="number"
+                    name="Cases"
+                    tickFormatter={formatNumber}
+                  />
+                  <YAxis
+                    dataKey="support"
+                    type="number"
+                    name="Support"
+                    // domain={[0, 0.3]}
+                  />
+                  <ZAxis range={[100, 100]} />
+                  <RechartsTooltip
+                    formatter={(value, name) => [
+                      name === "support"
+                        ? formatSupport(value)
+                        : formatNumber(value),
+                      name,
+                    ]}
+                  />
+                  <Scatter name="Sequences" fill="#8884d8" />
+                </ScatterChart>
+              </ResponsiveContainer>
+            </Card>
+          </Col>
+        )}
 
         <Col xs={24} lg={12}>
           <Card
@@ -889,7 +891,7 @@ const OWIDAnalysisDashboard = ({ analysisData }) => {
         </Col>
       </Row>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      {/* <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={16}>
           <Card
             title="Countries with Highest Impact"
@@ -948,7 +950,7 @@ const OWIDAnalysisDashboard = ({ analysisData }) => {
             </ResponsiveContainer>
           </Card>
         </Col>
-      </Row>
+      </Row> */}
 
       <Card
         title={`Analyzed Sequences (${filteredData.length})`}

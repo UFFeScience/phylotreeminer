@@ -1,7 +1,12 @@
 from neo4j import AsyncGraphDatabase 
 import os
+from dotenv import load_dotenv
+import pathlib
 from typing import List, Dict, Any, Tuple
 from neo4j.graph import Node, Relationship, Path
+
+env_path = pathlib.Path(__file__).resolve().parents[3] / ".env"
+load_dotenv(dotenv_path=env_path)
 
 class Neo4jService:
     def __init__(self, uri: str = None, username: str = None, password: str = None):
@@ -10,6 +15,9 @@ class Neo4jService:
         self.password = password or os.getenv('NEO4J_PASSWORD')
         self.driver = None
         self.connected = False
+        if not self.password:
+            print(env_path)
+            raise ValueError("NEO4J_PASSWORD not defined in environment variables")
 
     async def connect(self):
         """Estabelece conexão com o banco Neo4j de forma assíncrona."""

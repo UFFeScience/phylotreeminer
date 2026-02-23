@@ -59,7 +59,7 @@ const Highlights = () => {
       icon: <BarChartOutlined style={{ fontSize: "24px", color: "#1890ff" }} />,
       title: "Epidemiological Data Integration with OWID",
       description:
-        <p>Connect phylogenetic analyses with epidemiological data from <a href="https://ourworldindata.org/" target="_balnk">Our World in Data (OWID)</a>, enabling correlation of evolutionary patterns with public health trends, disease incidence, and real-time population metrics.</p>,
+        <p>Optional help connecting phylogenetic analyses with epidemiological data from  <a href="https://ourworldindata.org/" target="_balnk">Our World in Data (OWID)</a>, enabling correlation of evolutionary patterns with public health trends, disease incidence, and real-time population metrics.</p>,
     },
     {
       icon: <FunctionOutlined style={{ fontSize: "24px", color: "#1890ff" }} />,

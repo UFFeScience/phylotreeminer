@@ -115,7 +115,7 @@ const PhyloTreeMinerDocs = () => {
             style={{ marginBottom: 24 }}
           />
 
-          <Title level={2}>🔍 The Problem: Phylogenetic Uncertainty</Title>
+          <Title level={2}>The Problem: Phylogenetic Uncertainty</Title>
 
           <Card style={{ marginBottom: 16 }}>
             <Title level={4}>Why? The Methodological Choice Challenge</Title>
@@ -361,7 +361,7 @@ const PhyloTreeMinerDocs = () => {
               border: "1px solid #ffd591",
             }}
           >
-            <Title level={3}>Why PhyloTreeMiner is Essential?</Title>
+            <Title level={3}>Why use PhyloTreeMiner?</Title>
             <Paragraph>
               In a world with biological data growing exponentially, traditional
               tools become inadequate.{" "}
@@ -620,7 +620,7 @@ const PhyloTreeMinerDocs = () => {
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col span={8}>
                   <Card
-                    title="📁 Existing Datasets"
+                    title="Existing Datasets"
                     style={{ height: "100%" }}
                     type="inner"
                   >
@@ -640,7 +640,7 @@ const PhyloTreeMinerDocs = () => {
                 </Col>
                 <Col span={8}>
                   <Card
-                    title="⬆️ Upload New Data"
+                    title="Upload New Data"
                     style={{ height: "100%" }}
                     type="inner"
                   >
@@ -661,7 +661,7 @@ const PhyloTreeMinerDocs = () => {
                 </Col>
                 <Col span={8}>
                   <Card
-                    title="🌐 NCBI Search (Beta)"
+                    title="NCBI Search (Beta)"
                     style={{ height: "100%" }}
                     type="inner"
                   >
@@ -790,7 +790,7 @@ const PhyloTreeMinerDocs = () => {
                 <Col span={12}>
                   <Card
                     size="small"
-                    title="📊 Expected Outputs"
+                    title="Expected Outputs"
                     style={{ height: "100%" }}
                   >
                     <List
@@ -808,7 +808,7 @@ const PhyloTreeMinerDocs = () => {
                 <Col span={12}>
                   <Card
                     size="small"
-                    title="⏱️ Execution Time"
+                    title="Execution Time"
                     style={{ height: "100%" }}
                   >
                     <List
@@ -943,7 +943,7 @@ const PhyloTreeMinerDocs = () => {
               </Paragraph>
 
               <Card
-                title="📋 Workflow Steps"
+                title="Workflow Steps"
                 style={{ marginBottom: 24 }}
                 type="inner"
               >
@@ -1039,7 +1039,7 @@ const PhyloTreeMinerDocs = () => {
                 />
               </Card>
 
-              <Title level={3}>📋 Configuration Example</Title>
+              <Title level={3}>Configuration Example</Title>
               <Paragraph>
                 Basic configuration for a standard analysis:
               </Paragraph>
@@ -1072,7 +1072,7 @@ const PhyloTreeMinerDocs = () => {
     "output_path": "./projects/#/out",
     "input_format": "nexus",
     "output_format": "nexus",
-    "resume_infos": true,
+    "resume_infos": false,
     "save_metadata": true,
     "subtree_miner": true
   }
@@ -1121,7 +1121,7 @@ const PhyloTreeMinerDocs = () => {
                 </Col>
                 <Col span={12}>
                   <Card
-                    title="📤 Output Formats"
+                    title="Output Formats"
                     style={{ height: "100%" }}
                     type="inner"
                   >
@@ -1215,7 +1215,7 @@ const PhyloTreeMinerDocs = () => {
                 />
               </Card>
 
-              <Title level={3}>💡 Recommended Settings</Title>
+              <Title level={3}>Recommended Settings</Title>
               <Paragraph>
                 For optimal performance on a standard workstation:
               </Paragraph>
@@ -1244,7 +1244,7 @@ const PhyloTreeMinerDocs = () => {
                 <Col span={12}>
                   <Card
                     size="small"
-                    title="🖥️ Recommended Hardware"
+                    title="Recommended Hardware"
                     style={{ height: "100%" }}
                   >
                     <List
@@ -1262,7 +1262,7 @@ const PhyloTreeMinerDocs = () => {
                 <Col span={12}>
                   <Card
                     size="small"
-                    title="🚀 Optimization Tips"
+                    title="Optimization Tips"
                     style={{ height: "100%" }}
                   >
                     <List
@@ -1308,7 +1308,7 @@ const PhyloTreeMinerDocs = () => {
               </Paragraph>
 
               <Card
-                title="📥 Step 1: Build Docker Image"
+                title="Step 1: Build Docker Image"
                 style={{ marginBottom: 16 }}
               >
                 <Paragraph>
@@ -1337,7 +1337,7 @@ const PhyloTreeMinerDocs = () => {
               </Card>
 
               <Card
-                title="⚙️ Step 2: Prepare Configuration"
+                title="Step 2: Prepare Configuration"
                 style={{ marginBottom: 16 }}
               >
                 <Paragraph>
@@ -1366,7 +1366,7 @@ const PhyloTreeMinerDocs = () => {
               </Card>
 
               <Card
-                title="🚀 Step 3: Execute Workflow"
+                title="Step 3: Execute Workflow"
                 style={{ marginBottom: 16 }}
               >
                 <Paragraph>
@@ -1440,7 +1440,7 @@ const PhyloTreeMinerDocs = () => {
                 Docker.
               </Paragraph>
 
-              <Card title="📋 Prerequisites" style={{ marginBottom: 24 }}>
+              <Card title="Prerequisites" style={{ marginBottom: 24 }}>
                 <List
                   bordered
                   dataSource={[
@@ -1457,7 +1457,7 @@ const PhyloTreeMinerDocs = () => {
                 />
               </Card>
 
-              <Card title="⚡ Execution Command" style={{ marginBottom: 16 }}>
+              <Card title="Execution Command" style={{ marginBottom: 16 }}>
                 <Paragraph>Execute the workflow directly:</Paragraph>
                 <Card style={{ marginBottom: 16 }}>
                   <pre
@@ -1542,7 +1542,7 @@ conda activate phylotreeminer`}
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col span={8}>
                   <Card
-                    title="🐳 Docker Issues"
+                    title="Docker Issues"
                     size="small"
                     style={{ height: "100%" }}
                   >
@@ -1564,7 +1564,7 @@ conda activate phylotreeminer`}
                 </Col>
                 <Col span={8}>
                   <Card
-                    title="⚡ Execution Issues"
+                    title="Execution Issues"
                     size="small"
                     style={{ height: "100%" }}
                   >
@@ -1586,7 +1586,7 @@ conda activate phylotreeminer`}
                 </Col>
                 <Col span={8}>
                   <Card
-                    title="🚀 Performance Issues"
+                    title="Performance Issues"
                     size="small"
                     style={{ height: "100%" }}
                   >
@@ -1651,7 +1651,7 @@ conda activate phylotreeminer`}
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col span={12}>
                   <Card
-                    title="⚡ MAFFT"
+                    title="MAFFT"
                     style={{ height: "100%" }}
                     extra={<Tag color="blue">Recommended</Tag>}
                   >
@@ -1673,7 +1673,7 @@ conda activate phylotreeminer`}
                   </Card>
                 </Col>
                 <Col span={12}>
-                  <Card title="🎯 Clustal Omega" style={{ height: "100%" }}>
+                  <Card title="Clustal Omega" style={{ height: "100%" }}>
                     <Paragraph>
                       <strong>Method:</strong> Progressive multiple sequence
                       alignment
@@ -1704,7 +1704,7 @@ conda activate phylotreeminer`}
               <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col span={8}>
                   <Card
-                    title="📊 IQ-TREE"
+                    title="IQ-TREE"
                     size="small"
                     style={{ height: "100%" }}
                     extra={<Tag color="green">ML</Tag>}
@@ -1719,7 +1719,7 @@ conda activate phylotreeminer`}
                 </Col>
                 <Col span={8}>
                   <Card
-                    title="⚡ RAxML-NG"
+                    title="RAxML-NG"
                     size="small"
                     style={{ height: "100%" }}
                     extra={<Tag color="green">ML</Tag>}
@@ -1735,7 +1735,7 @@ conda activate phylotreeminer`}
                 </Col>
                 <Col span={8}>
                   <Card
-                    title="🎯 Neighbor-Joining"
+                    title="Neighbor-Joining"
                     size="small"
                     style={{ height: "100%" }}
                     extra={<Tag color="orange">Distance</Tag>}
@@ -1753,7 +1753,7 @@ conda activate phylotreeminer`}
                 </Col>
               </Row>
 
-              <Card title="📈 Method Comparison">
+              <Card title="Method Comparison">
                 <List
                   dataSource={[
                     "Maximum Likelihood (IQ-TREE, RAxML): High accuracy, computationally intensive",
@@ -1777,7 +1777,7 @@ conda activate phylotreeminer`}
               <Title level={2}>Mining Algorithms</Title>
 
               <Card
-                title="⚡ FPMax Algorithm"
+                title="FPMax Algorithm"
                 style={{ marginBottom: 24 }}
                 extra={<Tag color="red">High Performance</Tag>}
               >
@@ -1823,7 +1823,7 @@ conda activate phylotreeminer`}
               <Row gutter={[16, 16]}>
                 <Col span={12}>
                   <Card
-                    title="🌐 NCBI Integration"
+                    title="NCBI Integration"
                     style={{ height: "100%" }}
                     extra={<Tag color="blue">Data Source</Tag>}
                   >
@@ -1848,7 +1848,7 @@ conda activate phylotreeminer`}
                 </Col>
                 <Col span={12}>
                   <Card
-                    title="📊 OWID Integration"
+                    title="OWID Integration (Beta)"
                     style={{ height: "100%" }}
                     extra={<Tag color="purple">Epidemiology</Tag>}
                   >
