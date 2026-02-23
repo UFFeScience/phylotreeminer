@@ -16,8 +16,10 @@ import {
   Button,
   Flex,
   InputNumber,
+  Tooltip,
+  Popover,
 } from "antd";
-import { ClusterOutlined, ExperimentOutlined } from "@ant-design/icons";
+import { ClusterOutlined, InfoCircleOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -26,8 +28,8 @@ const TreePatternAnalysis = ({ projectName }) => {
   const [analysisData, setAnalysisData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [thresholdMin, setThresholdMin] = useState(0.2);
-  const [thresholdMax, setThresholdMax] = useState(0.6);
+  const [rareThreshold, setRareThreshold] = useState(0.3);
+  const [robustThreshold, setRobustThreshold] = useState(0.4);
 
   const analysisCache = useRef(new Map());
 
@@ -36,7 +38,7 @@ const TreePatternAnalysis = ({ projectName }) => {
     setError(null);
 
     try {
-      const cacheKey = `${projectName}_${thresholdMin}_${thresholdMax}`;
+      const cacheKey = `${projectName}_${rareThreshold}_${robustThreshold}`;
 
       if (analysisCache.current.has(cacheKey)) {
         setAnalysisData(analysisCache.current.get(cacheKey));
@@ -45,9 +47,8 @@ const TreePatternAnalysis = ({ projectName }) => {
       }
 
       const response = await fetch(
-        `http://localhost:8000/api/tree/pattern-analysis/${projectName}?min_support=${thresholdMin}&max_support=${thresholdMax}`
+        `http://localhost:8000/api/tree/pattern-analysis/${projectName}?rare_threshold=${rareThreshold}&robust_threshold=${robustThreshold}`,
       );
-
       if (!response.ok) throw new Error("Failed to load analysis");
 
       const data = await response.json();
@@ -65,7 +66,7 @@ const TreePatternAnalysis = ({ projectName }) => {
     if (projectName) {
       fetchAnalysis();
     }
-  }, [projectName, thresholdMin, thresholdMax]);
+  }, [projectName, rareThreshold, robustThreshold]);
 
   if (loading) {
     return (
@@ -105,83 +106,140 @@ const TreePatternAnalysis = ({ projectName }) => {
   }
 
   const {
-    unique_signatures,
-    quasi_invariant_patterns,
+    method_sensitive_signatures,
+    topologically_robust,
     pattern_statistics,
     tree_coverage,
   } = analysisData;
 
   const patternColumns = [
     {
-      title: "Pattern",
+      title: "Clades/Subtrees",
       dataIndex: "node_names",
       key: "pattern",
-      render: (nodes) => (
-        <Space direction="vertical" size="small">
-          {nodes.map((node, index) => (
-            <Tag key={index} color="blue">
-              {node}
-            </Tag>
-          ))}
-        </Space>
-      ),
+      render: (nodes) => {
+        if (!nodes || nodes.length === 0) return "-";
+
+        const maxVisible = 3;
+        const visibleNodes = nodes.slice(0, maxVisible);
+        const hiddenNodes = nodes.slice(maxVisible);
+
+        return (
+          <Space size={[0, 4]} wrap>
+            {visibleNodes.map((node, index) => (
+              <Tag key={index} color="blue">
+                {node}
+              </Tag>
+            ))}
+            {hiddenNodes.length > 0 && (
+              <Popover
+                content={
+                  <div
+                    style={{
+                      maxWidth: 400,
+                      maxHeight: 600,
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "4px",
+                      overflow: "auto",
+                    }}
+                  >
+                    {hiddenNodes.map((node, index) => (
+                      <Tag key={index} color="blue">
+                        {node}
+                      </Tag>
+                    ))}
+                  </div>
+                }
+                title="Clades/Subtrees adicionais"
+                trigger="hover"
+              >
+                <Tag
+                  color="blue"
+                  style={{ cursor: "pointer", borderStyle: "dashed" }}
+                >
+                  + {hiddenNodes.length} mais...
+                </Tag>
+              </Popover>
+            )}
+          </Space>
+        );
+      },
     },
     {
-      title: "Support",
+      title: (
+        <Space>
+          Support
+          <Tooltip title="Percentage of trees (methods) where this clade was recovered.">
+            <InfoCircleOutlined />
+          </Tooltip>
+        </Space>
+      ),
       dataIndex: "support",
       key: "support",
       render: (support) => `${(support * 100).toFixed(1)}%`,
       sorter: (a, b) => a.support - b.support,
     },
     {
-      title: "Size",
+      title: "Size (Nodes)",
       dataIndex: "size",
       key: "size",
       sorter: (a, b) => a.size - b.size,
     },
   ];
 
-  return (
-    <div style={{ padding: "24px" }}>
-      <Flex justify="space-between" align="center">
-        <Title level={2}>Tree Pattern Analysis</Title>
-        {/* <Button size="small" onClick={fetchAnalysis}>
-          Reload Analysis
-        </Button> */}
-        <Space
-          direction="vertical"
+  const expandedRowRender = (record) => {
+    return (
+      <div style={{ padding: "10px 20px", backgroundColor: "#f9f9f9" }}>
+        <Text strong>Taxa (Sequences) in this pattern:</Text>
+        <div
           style={{
-            padding: 12,
-            marginTop: 16,
+            marginTop: 8,
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "8px",
           }}
         >
+          {record.terminals?.map((taxa, idx) => (
+            <Tag key={idx}>{taxa}</Tag>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ padding: "24px" }}>
+      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
+        <Title level={2}>Tree Pattern Analysis</Title>
+        <Space direction="vertical" style={{ padding: 12 }}>
           <Title level={5} style={{ margin: 0 }}>
-            Support Threshold
+            Thresholds de Análise
           </Title>
           <Space style={{ width: "100%", justifyContent: "space-between" }}>
             <Space direction="vertical" size={2}>
               <Text type="secondary" strong style={{ fontSize: 12 }}>
-                Min
+                Sensitive (Max %)
               </Text>
               <InputNumber
-                value={thresholdMin}
+                value={rareThreshold}
                 min={0.1}
                 max={1.0}
                 step={0.1}
-                onChange={setThresholdMin}
+                onChange={setRareThreshold}
                 style={{ width: 100 }}
               />
             </Space>
             <Space direction="vertical" size={2}>
               <Text type="secondary" strong style={{ fontSize: 12 }}>
-                Max
+                Robust (Min %)
               </Text>
               <InputNumber
-                value={thresholdMax}
+                value={robustThreshold}
                 min={0.1}
                 max={1.0}
                 step={0.1}
-                onChange={setThresholdMax}
+                onChange={setRobustThreshold}
                 style={{ width: 100 }}
               />
             </Space>
@@ -189,7 +247,30 @@ const TreePatternAnalysis = ({ projectName }) => {
         </Space>
       </Flex>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Alert
+        message="Phylogenetic Interpretation"
+        description={
+          <ul style={{ paddingLeft: 20, marginBottom: 0 }}>
+            <li>
+              <b>Topologically Robust Clades (High Support): </b>
+              Strong evolutionary relationships. These groups appear in most
+              trees, regardless of the aligner or algorithm used (e.g., NJ,
+              UPGMA, ML).
+            </li>
+            <li>
+              <b>Method-Sensitive Clades (Low Support):</b>
+              Clusters Unstable. They form only under very specific evolutionary
+              algorithms or premises. They may indicate regions that are
+              difficult to resolve or noise in the alignment.
+            </li>
+          </ul>
+        }
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+      />
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
             <Statistic
@@ -226,7 +307,27 @@ const TreePatternAnalysis = ({ projectName }) => {
             />
           </Card>
         </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Method-Sensitive Clades"
+              value={method_sensitive_signatures.length}
+              valueStyle={{ color: "#faad14" }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Robust Evolutionary Clades"
+              value={topologically_robust.length}
+              valueStyle={{ color: "#389e0d" }}
+            />
+          </Card>
+        </Col>
       </Row>
+
+      <Row gutter={16} style={{ marginBottom: 16 }}></Row>
 
       {/* <Card title="Pattern Size Distribution" style={{ marginBottom: 24 }}>
         <Row gutter={16}>
@@ -249,15 +350,16 @@ const TreePatternAnalysis = ({ projectName }) => {
 
       <Collapse style={{ marginBottom: 24 }}>
         <Panel
-          header={`Unique Signatures  (${unique_signatures.length})`}
+          header={`Method-Sensitive Clades (Support ≤ ${(rareThreshold * 100).toFixed(0)}%)`}
           key="1"
         >
           <Table
             columns={patternColumns}
-            dataSource={unique_signatures.map((item, index) => ({
+            dataSource={method_sensitive_signatures.map((item, index) => ({
               ...item,
               key: index,
             }))}
+            expandable={{ expandedRowRender }}
             pagination={{ pageSize: 10 }}
             size="small"
           />
@@ -266,22 +368,54 @@ const TreePatternAnalysis = ({ projectName }) => {
 
       <Collapse style={{ marginBottom: 24 }}>
         <Panel
-          header={`Quasi-Invariant Patterns (${quasi_invariant_patterns.length})`}
+          header={`Topologically Robust Clades (Support ≥ ${(robustThreshold * 100).toFixed(0)}%)`}
           key="2"
         >
           <Table
             columns={patternColumns}
-            dataSource={quasi_invariant_patterns.map((item, index) => ({
+            dataSource={topologically_robust.map((item, index) => ({
               ...item,
               key: index,
             }))}
+            expandable={{ expandedRowRender }}
             pagination={{ pageSize: 10 }}
             size="small"
           />
         </Panel>
       </Collapse>
 
-      <Card title="Coverage per Tree">
+      <Card title="Coverage per Tree" style={{ marginBottom: 8 }}>
+        <Alert
+          message="Methodological Performance Analysis"
+          description={
+            <ul style={{ paddingLeft: 20, margin: 0 }}>
+              <li>
+                <b>Pattern Count:</b> The total number of clades (patterns)
+                identified in this specific tree. 
+                {/* A highly discrepant number may
+                indicate that the algorithm forces unrealistic groupings or,
+                conversely, fails to properly resolve the topology. */}
+              </li>
+              <li>
+                <b>Average Support:</b> Indicates the overall reliability of
+                this tree's topology. 
+                {/* Higher values mean that the clades
+                produced by this method are strongly supported by the other
+                trees in the project. */}
+              </li>
+              <li>
+                <b>Size Range:</b> Shows the range of recovered clade sizes.
+                 {/* It
+                helps determine whether the method performs better at resolving
+                small, recent groups (smaller sizes) or only major ancestral
+                divisions (larger sizes). */}
+              </li>
+            </ul>
+          }
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
         <List
           dataSource={Object.entries(tree_coverage)}
           renderItem={([treeName, stats]) => (
