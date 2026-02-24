@@ -625,14 +625,17 @@ async def get_file_content(path: str = Query(..., description="Caminho relativo 
     content = ""
 
     try:
+        if os.path.getsize(full_path) == 0:
+            raise HTTPException(status_code=400, detail="O arquivo selecionado está vazio (0 bytes) no servidor.")
+
+        mime_type, _ = mimetypes.guess_type(full_path)
+        if mime_type and mime_type.startswith("image/"):
+            return FileResponse(full_path)
+
         with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
             content = f.read()
-            
-        if any(full_path.endswith(ext) for ext in [".cql"]):
-            file_type = "cql"
-            content = content.replace('\\"', '"').replace('\\\\', '\\')
 
-        if any(full_path.endswith(ext) for ext in [".newick", ".nwk", ".tree",".nexus"]):
+        if any(full_path.endswith(ext) for ext in [".newick", ".nwk", ".tree", ".nexus"]):
             file_type = "newick"
         elif any(full_path.endswith(ext) for ext in [".fasta", ".fa", ".fas", ".faa"]):
             file_type = "fasta"
@@ -642,14 +645,16 @@ async def get_file_content(path: str = Query(..., description="Caminho relativo 
             file_type = "table"
         elif any(full_path.endswith(ext) for ext in [".log", ".txt"]):
             file_type = "text"
-        elif any(full_path.endswith(ext) for ext in [".cql"]):
+        elif full_path.endswith(".cql"):
             file_type = "cql"
+            content = content.replace('\\"', '"').replace('\\\\', '\\')
         elif full_path.endswith(".json"):
             file_type = "json"
-        
-        mime_type, _ = mimetypes.guess_type(full_path)
-        if mime_type and mime_type.startswith("image/"):
-            return FileResponse(full_path)
+            try:
+                parsed_json = json.loads(content)
+                return {"content": parsed_json[0], "type": file_type}
+            except json.JSONDecodeError:
+                pass 
         
         if file_type != "unsupported":
              return {"content": content, "type": file_type}

@@ -26,7 +26,6 @@ import {
   FileOutlined,
   HomeOutlined,
   BarChartOutlined,
-  CloseOutlined,
 } from "@ant-design/icons";
 import MSAViewer from "../../components/analysis/MSAViewer";
 import PhylogeneticTreeViewer from "../../components/analysis/PhylogeneticTreeViewer";
@@ -35,6 +34,8 @@ import TreeComparisonViewer from "../analysis/TreeComparisonViewer";
 import TreePatternAnalysis from "../analysis/TreePatternAnalysis";
 import CQLExecutor from "../CQLExecutor";
 import PhylogeneticInsights from "../analysis/Tree/PhylogeneticInsights";
+import MetadataViewer from "./utils/MetadataViewer";
+import PaginatedJsonViewer from "./utils/PaginatedJsonViewer";
 
 const { Option } = Select;
 
@@ -103,7 +104,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     setError(null);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/browse?path=${encodeURIComponent(path)}`
+        `${API_BASE_URL}/browse?path=${encodeURIComponent(path)}`,
       );
       if (!response.ok) throw new Error("Failed to fetch content.");
 
@@ -125,7 +126,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
     setError(null);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/tree/metadata/${projectName}`
+        `${API_BASE_URL}/api/tree/metadata/${projectName}`,
       );
       if (!response.ok) throw new Error("Failed to fetch metadata.");
 
@@ -220,12 +221,12 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
       if (item.type === "directory" || !isTreeFile(item)) return;
 
       const isSelected = selectedItems.some(
-        (selected) => selected.path === item.path
+        (selected) => selected.path === item.path,
       );
 
       if (isSelected) {
         setSelectedItems(
-          selectedItems.filter((selected) => selected.path !== item.path)
+          selectedItems.filter((selected) => selected.path !== item.path),
         );
       } else {
         if (selectedItems.length < 2) {
@@ -259,7 +260,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/file?path=${encodeURIComponent(item.path)}`
+        `${API_BASE_URL}/file?path=${encodeURIComponent(item.path)}`,
       );
       if (!response.ok)
         throw new Error(`Erro ${response.status}: ${response.statusText}`);
@@ -269,9 +270,25 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         setModalContent(URL.createObjectURL(blob));
         setModalContentType("image");
       } else {
-        const data = await response.json();
-        setModalContent(data.content);
-        setModalContentType(data.type);
+        const textContent = await response.text();
+        
+        try {
+          const data = JSON.parse(textContent);
+          
+          if (data && data.content !== undefined) {
+            setModalContent(data.content);
+            setModalContentType(data.type || "json");
+          } else {
+            setModalContent(data);
+            setModalContentType("json");
+          }
+        } catch (parseError) {
+          console.error("--- ERRO CRÍTICO DE REDE/BACK-END ---");
+          console.error("O arquivo não foi totalmente entregue pelo servidor.");
+          console.error(`Tamanho do payload recebido: ${textContent.length} caracteres.`);
+          console.error("Últimos 100 caracteres do arquivo (veja onde cortou):", textContent.slice(-100));
+          throw new Error("JSON incompleto. O servidor interrompeu o envio do arquivo.");
+        }
       }
 
       message.success({
@@ -325,13 +342,13 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
       const [tree1Response, tree2Response] = await Promise.all([
         fetch(
           `${API_BASE_URL}/file?path=${encodeURIComponent(
-            selectedItems[0].path
-          )}`
+            selectedItems[0].path,
+          )}`,
         ),
         fetch(
           `${API_BASE_URL}/file?path=${encodeURIComponent(
-            selectedItems[1].path
-          )}`
+            selectedItems[1].path,
+          )}`,
         ),
       ]);
 
@@ -399,7 +416,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
 
     const relativePath = currentPath.replace(
       new RegExp(`^${selectedProject}/?`),
-      ""
+      "",
     );
     const pathParts = relativePath.split("/").filter(Boolean);
 
@@ -432,7 +449,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
 
   const breadcrumbItems = useMemo(
     () => generateBreadcrumbItems(),
-    [currentPath, selectedProject]
+    [currentPath, selectedProject],
   );
 
   const renderModalContent = () => {
@@ -482,8 +499,16 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
                 message="Interactive Features"
                 description={
                   <div>
-                    <p><strong>• Clickable Taxa/Terminals:</strong> Click on any taxon/terminal to view detailed information about the sequence.</p>
-                    <p><strong>• Filters and Highlights:</strong> Apply filters to the view and highlight groups of common information for comparative analysis.</p>
+                    <p>
+                      <strong>• Clickable Taxa/Terminals:</strong> Click on any
+                      taxon/terminal to view detailed information about the
+                      sequence.
+                    </p>
+                    <p>
+                      <strong>• Filters and Highlights:</strong> Apply filters
+                      to the view and highlight groups of common information for
+                      comparative analysis.
+                    </p>
                   </div>
                 }
                 type="info"
@@ -505,12 +530,9 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         );
       case "table":
         return <TableView content={modalContent} />;
-      case "json":
-        return (
-          <pre style={{ maxHeight: "75vh", overflow: "auto" }}>
-            {JSON.stringify(JSON.parse(modalContent), null, 2)}
-          </pre>
-        );
+      case "json": {
+        return <PaginatedJsonViewer rawContent={modalContent} />;
+      }
       case "image":
         return (
           <img
@@ -525,7 +547,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
             <CQLExecutor
               fileContent={modalContent}
               fileName={modalItem?.name}
-              projectName={selectedProject} 
+              projectName={selectedProject}
               onClose={handleCloseModal}
             />
           </div>
@@ -534,16 +556,26 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         return <Empty description="Could not load file contents." />;
       default:
         return (
-          <div style={{ maxHeight: "75vh", overflowY: "auto" }}>
-            <Typography.Paragraph
+          <div 
+            style={{ 
+              maxHeight: "75vh", 
+              overflowY: "auto",
+              borderRadius: "6px",
+              padding: "16px"
+            }}
+          >
+            <pre
               style={{
+                margin: 0,
+                fontFamily: "'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace",
+                fontSize: "13px",
+                lineHeight: "1.6",
                 whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                fontFamily: "sans-serif",
+                wordWrap: "break-word",
               }}
             >
               {modalContent}
-            </Typography.Paragraph>
+            </pre>
           </div>
         );
     }
@@ -552,11 +584,11 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
   const renderItem = useCallback(
     (item) => {
       const isSelected = selectedItems.some(
-        (selected) => selected.path === item.path
+        (selected) => selected.path === item.path,
       );
       const isTree = isTreeFile(item);
       const isLoading = isItemLoading(item.path);
-      setShowAnalysis(true)
+      setShowAnalysis(true);
       return (
         <List.Item
           onClick={() => !isLoading && handleItemClick(item)}
@@ -566,13 +598,13 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
             backgroundColor: isSelected
               ? "#e6f7ff"
               : isTree && comparisonMode
-              ? "#f6ffed"
-              : "transparent",
+                ? "#f6ffed"
+                : "transparent",
             border: isSelected
               ? "2px solid #1890ff"
               : isTree && comparisonMode
-              ? "1px solid #b7eb8f"
-              : "1px solid #f0f0f0",
+                ? "1px solid #b7eb8f"
+                : "1px solid #f0f0f0",
             marginBottom: "4px",
             borderRadius: "6px",
           }}
@@ -607,7 +639,7 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
         </List.Item>
       );
     },
-    [selectedItems, comparisonMode]
+    [selectedItems, comparisonMode],
   );
 
   return (
@@ -720,14 +752,14 @@ const ProjectExplorer = ({ initialProjectName = null }) => {
           modalContentType === "comparison"
             ? `Comparison: ${selectedItems[0]?.name} vs ${selectedItems[1]?.name}`
             : modalItem
-            ? `Viewing: ${modalItem.name}`
-            : ""
+              ? `Viewing: ${modalItem.name}`
+              : ""
         }
         open={isModalVisible}
         onCancel={handleCloseModal}
         footer={null}
         width="90vw"
-        style={{ top: 20, maxWidth: "90vw" }}
+        style={{  maxWidth: "90vw" }}
         // destroyOnClose
       >
         {renderModalContent()}
