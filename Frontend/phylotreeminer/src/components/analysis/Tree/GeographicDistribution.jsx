@@ -278,11 +278,23 @@ const GeographicDistribution = ({ sequences }) => {
       <Row gutter={[16, 16]}>
         <Col xs={24} md={16}>
           <div
-            style={{ height: "450px", borderRadius: "8px", overflow: "hidden" }}
+            style={{ height: "500px", borderRadius: "8px", overflow: "hidden" }}
           >
             <MapContainer
               center={[20, 0]}
-              zoom={2.45}
+              worldCopyJump={false}
+              maxBounds={[
+                [-90, -180], 
+                [90, 180], 
+              ]}
+              maxBoundsViscosity={3.0}
+              zoom={3}
+              zoomDelta={0.4}
+              minZoom={2} 
+              maxZoom={8} 
+              zoomControl={true}
+              wheelDebounceTime={100} 
+              wheelPxPerZoomLevel={100}
               style={{ height: "100%", width: "100%" }}
             >
               <TileLayer
@@ -367,7 +379,10 @@ const GeographicDistribution = ({ sequences }) => {
                             }}
                           >
                             <div style={{ fontSize: "12px", color: "#666" }}>
-                              Isolate: <i>{seq.isolate === "Unknown" ? seq.isolate : '-' }</i>
+                              Isolate:{" "}
+                              <i>
+                                {seq.isolate === "Unknown" ? seq.isolate : "-"}
+                              </i>
                             </div>
                             <div style={{ fontSize: "12px", color: "#666" }}>
                               ID: {seq.id}
@@ -432,7 +447,7 @@ const GeographicDistribution = ({ sequences }) => {
                               key={idx}
                               style={{ fontSize: "12px", marginTop: "4px" }}
                             >
-                              {seq.id || seq.isolate }
+                              {seq.id || seq.isolate}
                             </div>
                           ))}
                           {item.sequences.length > 3 && (

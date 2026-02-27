@@ -271,8 +271,8 @@ const TreePatternAnalysis = ({ projectName }) => {
       <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
         <Title level={2}>Tree Pattern Analysis</Title>
         <Space direction="vertical" style={{ padding: 12 }}>
-          <Title strong style={{ margin: 0 }}>
-            Thresholds de Análise
+          <Title strong level={4} style={{ margin: 0 }}>
+            Thresholds
           </Title>
           <Space style={{ width: "100%", justifyContent: "space-between" }}>
             <Space direction="vertical" size={2}>
