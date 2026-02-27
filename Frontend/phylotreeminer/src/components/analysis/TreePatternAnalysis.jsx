@@ -17,6 +17,8 @@ import {
   InputNumber,
   Tooltip,
   Popover,
+  Badge,
+  Dropdown
 } from "antd";
 import {
   ClusterOutlined,
@@ -33,6 +35,11 @@ const TreePatternAnalysis = ({ projectName }) => {
   const [error, setError] = useState(null);
   const [rareThreshold, setRareThreshold] = useState(0.3);
   const [robustThreshold, setRobustThreshold] = useState(0.4);
+  const [method_sensitive_signatures, setMethod_sensitive_signatures] =
+    useState({});
+  const [topologically_robust, setTopologically_robust] = useState({});
+  const [pattern_statistics, setPattern_statistics] = useState({});
+  const [tree_coverage, setTree_coverage] = useState({});
 
   const analysisCache = useRef(new Map());
 
@@ -58,6 +65,10 @@ const TreePatternAnalysis = ({ projectName }) => {
 
       analysisCache.current.set(cacheKey, data);
       setAnalysisData(data);
+      setMethod_sensitive_signatures(data.method_sensitive_signatures);
+      setTopologically_robust(data.topologically_robust);
+      setPattern_statistics(data.pattern_statistics);
+      setTree_coverage(data.tree_coverage);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -70,6 +81,40 @@ const TreePatternAnalysis = ({ projectName }) => {
       fetchAnalysis();
     }
   }, [projectName, rareThreshold, robustThreshold]);
+
+  const sharedSensitiveSequences = useMemo(() => {
+    if (
+      !method_sensitive_signatures ||
+      !Array.isArray(method_sensitive_signatures)
+    )
+      return [];
+    const counts = {};
+    method_sensitive_signatures.forEach((item) => {
+      const uniqueInRow = new Set(item.terminals || []);
+      uniqueInRow.forEach((taxa) => {
+        counts[taxa] = (counts[taxa] || 0) + 1;
+      });
+    });
+    return Object.entries(counts)
+      .filter(([_, count]) => count > 1)
+      .sort((a, b) => b[1] - a[1])
+      .map(([taxa, count]) => ({ taxa, count }));
+  }, [method_sensitive_signatures]);
+
+  const sharedRobustSequences = useMemo(() => {
+    if (!topologically_robust || !Array.isArray(topologically_robust))
+      return [];
+    const counts = {};
+    topologically_robust.forEach((item) => {
+      const uniqueInRow = new Set(item.terminals || []);
+      uniqueInRow.forEach((taxa) => {
+        counts[taxa] = (counts[taxa] || 0) + 1;
+      });
+    });
+    return Object.entries(counts)
+      .filter(([_, count]) => count > 1)
+      .map(([taxa, count]) => ({ taxa, count }));
+  }, [topologically_robust]);
 
   if (loading) {
     return (
@@ -107,13 +152,6 @@ const TreePatternAnalysis = ({ projectName }) => {
       />
     );
   }
-
-  const {
-    method_sensitive_signatures,
-    topologically_robust,
-    pattern_statistics,
-    tree_coverage,
-  } = analysisData;
 
   const patternColumns = [
     {
@@ -204,14 +242,19 @@ const TreePatternAnalysis = ({ projectName }) => {
           }}
         >
           {record.terminals?.map((taxa, idx) => (
-            <Tag key={idx} >
+            <Tag key={idx}>
               {
                 <a
                   href={`https://www.ncbi.nlm.nih.gov/nuccore/${taxa}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  <Button icon={<ExportOutlined />} size='small' type="link" style={{fontSize:10}}>
+                  <Button
+                    icon={<ExportOutlined />}
+                    size="small"
+                    type="link"
+                    style={{ fontSize: 10 }}
+                  >
                     {taxa}
                   </Button>
                 </a>
@@ -228,7 +271,7 @@ const TreePatternAnalysis = ({ projectName }) => {
       <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
         <Title level={2}>Tree Pattern Analysis</Title>
         <Space direction="vertical" style={{ padding: 12 }}>
-          <Title level={5} style={{ margin: 0 }}>
+          <Title strong style={{ margin: 0 }}>
             Thresholds de Análise
           </Title>
           <Space style={{ width: "100%", justifyContent: "space-between" }}>
@@ -368,6 +411,103 @@ const TreePatternAnalysis = ({ projectName }) => {
           header={`Method-Sensitive Clades (Support ≤ ${(rareThreshold * 100).toFixed(0)}%)`}
           key="1"
         >
+          {sharedSensitiveSequences.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Dropdown
+                placement="topLeft"
+                trigger={["hover"]}
+                popupRender={() => (
+                  <div
+                    style={{
+                      backgroundColor: "#fff",
+                      padding: "8px",
+                      borderRadius: "8px",
+                      boxShadow:
+                        "0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12)",
+                      border: "1px solid #0B7DCF34",
+                      width: "600px", 
+                    }}
+                  >
+                    <div
+                      style={{
+                        marginBottom: 12,
+                        borderBottom: "1px solid #f0f0f0",
+                        paddingBottom: 8,
+                      }}
+                    >
+                      <Text strong>Shared Sequences in Sensitive Patterns</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        Ranked by frequency across patterns
+                      </Text>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "16px",
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        padding: "4px",
+                      }}
+                    >
+                      {sharedSensitiveSequences.map(({ taxa, count }) => (
+                        <Badge
+                          key={taxa}
+                          count={count}
+                          size="small"
+                          color="blue"
+                          offset={[2, 2]}
+                        >
+                          <Tag
+                            color="geekblue"
+                            variant="filled"
+                            style={{ marginRight: 0 }}
+                          >
+                            <a
+                              href={`https://www.ncbi.nlm.nih.gov/nuccore/${taxa}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                icon={<ExportOutlined />}
+                                size="small"
+                                type="link"
+                                style={{ fontSize: 10 }}
+                              >
+                                {taxa}
+                              </Button>
+                            </a>
+                          </Tag>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              >
+                {/* Gatilho do Dropdown */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "4px 8px",
+                    backgroundColor: "#108FE938",
+                    border: "1px solid #0B7DCF34",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Space>
+                    <InfoCircleOutlined style={{ color: "#126BCA" }} />
+                    <Text  style={{ color: "#126BCA" }}>
+                      View Shared Sequences ({sharedSensitiveSequences.length})
+                    </Text>
+                  </Space>
+                </div>
+              </Dropdown>
+            </div>
+          )}
           <Table
             columns={patternColumns}
             dataSource={method_sensitive_signatures.map((item, index) => ({
@@ -386,6 +526,103 @@ const TreePatternAnalysis = ({ projectName }) => {
           header={`Topologically Robust Clades (Support ≥ ${(robustThreshold * 100).toFixed(0)}%)`}
           key="2"
         >
+          {sharedRobustSequences.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <Dropdown
+                placement="topLeft"
+                trigger={["hover"]}
+                popupRender={() => (
+                  <div
+                    style={{
+                      backgroundColor: "#fff",
+                      padding: "8px",
+                      borderRadius: "8px",
+                      boxShadow:
+                        "0 6px 16px 0 rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12)",
+                      border: "1px solid #0B7DCF34",
+                      width: "600px", 
+                    }}
+                  >
+                    <div
+                      style={{
+                        marginBottom: 12,
+                        borderBottom: "1px solid #f0f0f0",
+                        paddingBottom: 8,
+                      }}
+                    >
+                      <Text strong>Shared Sequences in Sensitive Patterns</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        Ranked by frequency across patterns
+                      </Text>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "16px",
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        padding: "4px",
+                      }}
+                    >
+                      {sharedRobustSequences.map(({ taxa, count }) => (
+                        <Badge
+                          key={taxa}
+                          count={count}
+                          size="small"
+                          color="green"
+                          offset={[2, 2]}
+                        >
+                          <Tag
+                            color="green"
+                            variant="filled"
+                            style={{ marginRight: 0 }}
+                          >
+                            <a
+                              href={`https://www.ncbi.nlm.nih.gov/nuccore/${taxa}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Button
+                                icon={<ExportOutlined />}
+                                size="small"
+                                type="link"
+                                style={{ fontSize: 10 }}
+                              >
+                                {taxa}
+                              </Button>
+                            </a>
+                          </Tag>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              >
+                {/* Gatilho do Dropdown */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    padding: "4px 8px",
+                    backgroundColor: "#10E96A38",
+                    border: "1px solid #0ED46156",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Space>
+                    <InfoCircleOutlined style={{ color: "#457A10" }} />
+                    <Text  style={{ color: "#457A10" }}>
+                      View Shared Sequences ({sharedSensitiveSequences.length})
+                    </Text>
+                  </Space>
+                </div>
+              </Dropdown>
+            </div>
+          )}
           <Table
             columns={patternColumns}
             dataSource={topologically_robust.map((item, index) => ({
