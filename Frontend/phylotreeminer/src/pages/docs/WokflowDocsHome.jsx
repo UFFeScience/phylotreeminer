@@ -841,7 +841,7 @@ const PhyloTreeMinerDocs = () => {
                 style={{ marginBottom: 24 }}
                 title="Output Structure and File Summary"
               >
-                <Title level={5}>Summary of Key Results by Directory</Title>
+                <Title level={4}>Summary of Key Results by Directory</Title>
 
                 <Descriptions
                   bordered

@@ -310,7 +310,7 @@ const MetadataViewer = ({ data }) => {
                 style={{ marginBottom: "24px" }}
               >
                 <Col>
-                  <Title level={5} style={{ margin: 0 }}>
+                  <Title level={4} style={{ margin: 0 }}>
                     Subtree Details:{" "}
                     <Text type="secondary">{selectedNodeKey}</Text>
                   </Title>

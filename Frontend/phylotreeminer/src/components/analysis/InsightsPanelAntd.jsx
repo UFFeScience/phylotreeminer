@@ -17,7 +17,7 @@ const InsightsPanelAntd = ({ selectedNode, insights, isLoading }) => {
 
   return (
     <Card title={<><InfoCircleOutlined /> Node Insights: <Text strong>{selectedNode.name}</Text></>} style={{ height: '100%', overflowY: 'auto' }}>
-      <Title level={5}>Description:</Title>
+      <Title level={4}>Description:</Title>
       <Paragraph>
         {/* Profundidade: <Tag color="blue">{selectedNode.depth}</Tag>
         <br />
@@ -31,7 +31,7 @@ const InsightsPanelAntd = ({ selectedNode, insights, isLoading }) => {
 
       <Divider />
 
-      <Title level={5}>NCBI Information</Title>
+      <Title level={4}>NCBI Information</Title>
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Spin indicator={<LoadingOutlined style={{ fontSize: 24 }} spin />} />
@@ -75,7 +75,7 @@ const InsightsPanelAntd = ({ selectedNode, insights, isLoading }) => {
 
       <Divider />
       
-      {/* <Title level={5}>Análise BLAST</Title>
+      {/* <Title strong>Análise BLAST</Title>
       <Button icon={<SearchOutlined />} block>
         Executar BLASTn (Lógica a ser implementada)
       </Button>

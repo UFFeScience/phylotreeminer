@@ -1204,7 +1204,7 @@ const PipelineConfigurator = () => {
       icon: <RocketOutlined />,
       content: (
         <Card>
-          <Title level={5}>Review Final Settings</Title>
+          <Title level={4}>Review Final Settings</Title>
           {pipelineData.config && (
             <Descriptions
               title="Workflow Configuration"

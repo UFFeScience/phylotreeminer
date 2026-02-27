@@ -1132,7 +1132,7 @@ const CQLExecutor = ({
 
         {executionResult && !isExecuting && (
           <div>
-            <Title level={5}>Execution Result:</Title>
+            <Title level={4}>Execution Result:</Title>
             <Alert
               message={`Execution Completed - ${executionResult.stats.successRate}% success rate`}
               description={
