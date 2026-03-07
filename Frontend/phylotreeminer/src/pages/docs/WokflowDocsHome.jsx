@@ -2046,9 +2046,10 @@ conda activate phylotreeminer`}
               padding: 32,
               margin: 0,
               minHeight: 280,
+              height:'90vh',
               borderRadius: 8,
               overflow: "auto",
-              maxHeight: "750px",
+              // maxHeight: "750px",
               boxShadow:
                 "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24)",
             }}

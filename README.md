@@ -11,21 +11,21 @@ git clone --recurse-submodules <URL-do-repositorio>
 
 # Initial Dependencies
 
-The `application_ui.sh` script was created to automate *project setup*, but it relies on some base tools that need to exist on the system.
+The `start.sh` script was created to automate *project setup*, but it relies on some base tools that need to exist on the system.
 
 Here is a dependency guide, divided between what **you** must install (System) and what **the script** installs (Project).
 
 -----
 
-## 🖥️ 1. System Dependencies (Prerequisites)
+##   1. System Dependencies (Prerequisites)
 
-These are the tools that your **Ubuntu** system must have **before** you run `./application_ui.sh --setup` for the first time. Without them, the script will fail.
+These are the tools that your **Ubuntu** system must have **before** you run `./start.sh --setup` for the first time. Without them, the script will fail.
 
   * **`git`**: To clone the repository and get project files.
   * **`curl`**: The script uses `curl` to download the Miniconda installer (if it doesn't find `conda`).
   * **`nodejs` and `npm`**: The script uses `npm` to install frontend dependencies. It checks if `npm` exists but does not install it.
 
-### ⬇️ Installation Command (Ubuntu)
+###  Installation Command (Ubuntu)
 
 To install all these prerequisites at once:
 
@@ -36,7 +36,7 @@ sudo apt install git curl nodejs npm -y
 
 -----
 
-## 🤖 2. Project Dependencies (Managed by Script)
+##  2. Project Dependencies (Managed by Script)
 
 If you run the script with the `--setup` flag, it will handle **all** of the following dependencies. You don't need to install them manually.
 
@@ -72,14 +72,20 @@ If you run the script with the `--setup` flag, it will handle **all** of the fol
 
 # Quick Start Guide
 
+**0. Give the script execute permission.:**
+```bash
+chmod +x start.sh
+```
+
+
 **1. First-time setup (install all dependencies):**
 ```bash
-./application_ui.sh --setup
+./start.sh --setup
 ```
 
 **2. Run application (after dependencies are installed):**
 ```bash
-./application_ui.sh
+./start.sh
 ```
 
 **Note:** The setup process may take several minutes as it downloads and installs all required bioinformatics tools and dependencies.

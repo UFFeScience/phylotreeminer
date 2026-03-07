@@ -11,7 +11,7 @@ from collections import defaultdict, Counter
 import threading
 import numpy as np
 
-from Bio import SeqIO, Entrez
+from Bio import SeqIO, Entrez, Phylo
 from io import StringIO, BytesIO
 from dendropy import Tree, TreeList, TaxonNamespace
 from dendropy.calculate import treecompare
@@ -24,6 +24,7 @@ from src.services.neo4j_services import neo4j_service
 from src.services.ncbi_acquisition import NCBIAcquisition
 from src.services.genericOWIDAnalyzer import GenericOWIDAnalyzer
 from src.services.cql_batch_service import init_cql_batch_service
+from src.utils.treePlot import render_annotated_tree, map_country_to_region
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_BASE_WORKFLOW = os.path.abspath(os.path.join(BASE_DIR, "../../BioComp_UFF"))
@@ -607,7 +608,7 @@ def get_metadata_node(node: dict):
     
 
 
-def get_node_information (annotations, features, qualifiers, accession: str):
+def get_node_information(annotations, features, qualifiers, accession: str):
     """
     Retorna informações do nó
     
@@ -626,7 +627,7 @@ def get_node_information (annotations, features, qualifiers, accession: str):
         
     lineage = annotations.get("organism", 'Unknown') or annotations.get("source", 'Unknown')
 
-    isolate = qualifiers.get("", ["Unknown"])
+    isolate = qualifiers.get("isolate", ["Unknown"])
 
     host_list = qualifiers.get("host", ["Unknown"])
     host = host_list[0] if isinstance(host_list, list) else host_list
@@ -643,6 +644,7 @@ def get_node_information (annotations, features, qualifiers, accession: str):
         # geo_loc_name geralmente vem como "Country: State/City"
         country = geo_loc.split(':')[0].strip()
 
+    region = map_country_to_region(country)
 
     coll_date = qualifiers.get("collection_date", [None])[0]
     raw_date = coll_date if coll_date else strain_info
@@ -658,6 +660,7 @@ def get_node_information (annotations, features, qualifiers, accession: str):
         "lineage":lineage,
         "host":host,
         "country":country,
+        "region": region,
         "year":year,
         "isolate": isolate
     }
@@ -709,12 +712,6 @@ async def get_tree_insights(project_name: str):
     if not os.path.exists(metadata_path):
         raise HTTPException(status_code=404, detail="Metadata not found")
 
-    total_nodes = 0
-    hosts_count = {}
-    country_count = {}
-    timeline_count = {}
-    unique_lineages = set()
-
     try:
 
         cache = get_metadata_cache(metadata_path)
@@ -745,6 +742,55 @@ async def get_tree_metadata(project_name: str):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading metadata: {e}")
+
+@app.get("/api/gen_plot/{project_name}", status_code=200)
+async def generate_tree_plot(project_name: str):
+    project_path = os.path.join(PROJECTS_ROOT, project_name)    
+    
+    # Adicionado: Resolução do caminho da árvore (Ajuste a extensão/nome conforme seu pipeline)
+    tree_path = os.path.join(project_path, 'out','Trees', 'tree_dataset_final_mafft_iqtree.nwk') 
+    nexus_path = os.path.join(project_path, 'out','Trees', 'tree_dataset_final_mafft_iqtree.nexus') 
+    plot_dir = os.path.join(project_path, 'out', 'outputs', "plot")
+    plot_path = os.path.join(plot_dir, "arvore_anotada_final.png")
+    metadata_path = os.path.join(project_path, 'out', 'outputs', "metadata.json")
+    
+    if not os.path.exists(metadata_path):
+        raise HTTPException(status_code=404, detail="Metadata not found")
+    
+
+    if not os.path.exists(tree_path):
+        if os.path.exists(nexus_path):
+            try:
+                print("Convertendo arquivo NEXUS para Newick...")
+                Phylo.convert(nexus_path, 'nexus', tree_path, 'newick')
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Erro ao converter NEXUS para Newick: {str(e)}")
+        else:
+            raise HTTPException(status_code=404, detail="Tree files (.nwk or .nexus) not found")
+        
+    try:
+        # Garante que o diretório de output do plot exista
+        os.makedirs(plot_dir, exist_ok=True)
+        
+        # Puxa os dados cacheados/indexados
+        cache = get_metadata_cache(metadata_path)
+        node_index = cache["nodes"] # Utiliza o dicionário indexado pela chave para acesso O(1) no ETE3
+
+        # Otimização: Só gera a imagem se ela não existir ou se a árvore/metadados forem mais recentes
+        # Para forçar a geração sempre, remova este if.
+        if not os.path.exists(plot_path):
+            # Chamada da função ETE3 desenvolvida anteriormente
+            render_annotated_tree(
+                tree_file=tree_path, 
+                metadata_dict=node_index, 
+                output_file=plot_path
+            )
+
+        # Retorna o arquivo binário da imagem gerada
+        return FileResponse(plot_path, media_type="image/png")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao gerar a visualização: {str(e)}")
 
 @app.get("/dataFolders", response_model=List[Project])
 async def get_data_folders():

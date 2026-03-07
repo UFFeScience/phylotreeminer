@@ -128,7 +128,7 @@ const HomePage = () => {
                             </Col>
                         </Row> */}
 
-            <div
+            {/* <div
               style={{
                 display: "flex",
                 justifyContent: "center",
@@ -142,7 +142,7 @@ const HomePage = () => {
                 alt="Workflow PhyloTreeMiner"
                 // style={{ width: 200, height: 200 }}
               />
-            </div>
+            </div> */}
             {/* <PhyloDIagramWokflow/> */}
             <Highlights />
           </div>
