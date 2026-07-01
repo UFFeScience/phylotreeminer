@@ -71,7 +71,7 @@ const Hero = () => {
                         </Typography> */}
                     </Typography>
                     <Typography variant="body1" textAlign="center" color="text.secondary">
-                        A powerful e-science tool designed to orchestrate, execute, and visualize end-to-end phylogenetic analysis workflows.
+                        A e-science tool designed to orchestrate, execute, and visualize end-to-end phylogenetic analysis workflows.
                     </Typography>
                     <Stack
                         direction={{ xs: 'column', sm: 'row' }}

@@ -1556,7 +1556,7 @@ async def analyze_tree_patterns(
     project_name: str,
     rare_threshold: float = Query(0.3, ge=0.0, le=1.0),
     robust_threshold: float = Query(0.6, ge=0.0, le=1.0),
-    min_pattern_size: int = Query(2, ge=1),
+    min_pattern_size: int = Query(1, ge=1),
     max_pattern_size: int = Query(100, ge=1)
 ):
     """
@@ -1635,6 +1635,10 @@ def analyze_patterns(fpmax_df, rare_threshold, robust_threshold, min_size, max_s
             return set()  
     
     patterns = []
+    high_support_raw = fpmax_df[fpmax_df['support'] >= robust_threshold]
+    print(f"Padrões com suporte >= {robust_threshold} no CSV: {len(high_support_raw)}")
+    print(high_support_raw['itemsets'].head())
+    
     for _, row in fpmax_df.iterrows():
         try:
             itemset = parse_frozenset(row['itemsets'])
@@ -1657,19 +1661,21 @@ def analyze_patterns(fpmax_df, rare_threshold, robust_threshold, min_size, max_s
     
     for pattern in patterns:
         node_names = []
-        terminals_involved = set()
-        
+        terminals_by_node = {}
+
         for h in pattern['itemset']:
             if h in hash_to_subtree_info:
-                node_names.append(hash_to_subtree_info[h]["subtree_name"])
-                terminals_involved.update(hash_to_subtree_info[h]["terminals"])
+                name = hash_to_subtree_info[h]["subtree_name"]
+                node_names.append(name)
+                terminals_by_node[name] = hash_to_subtree_info[h]["terminals"]
             else:
                 node_names.append(f"Unknown_{h}")
-        
+
         pattern_data = {
             'pattern': list(pattern['itemset']),
             'node_names': node_names,
-            'terminals': list(terminals_involved), # Nova informação adicionada
+            'terminals_by_node': terminals_by_node,  # dict: node_name → [terminals]
+            'terminals': list({t for seqs in terminals_by_node.values() for t in seqs}),  # mantém o total para compatibilidade
             'support': pattern['support'],
             'size': pattern['size']
         }

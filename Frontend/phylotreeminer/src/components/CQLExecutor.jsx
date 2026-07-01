@@ -15,6 +15,7 @@ import {
   List,
   Collapse,
   Tooltip,
+  Input,
 } from "antd";
 import {
   PlayCircleOutlined,
@@ -41,6 +42,7 @@ const CQLExecutor = ({
   projectName = null,
   onClose,
 }) => {
+  const [editedCommands, setEditedCommands] = useState({});
   const [fileContent, setFileContent] = useState("");
   const [fileName, setFileName] = useState("");
   const [isExecuting, setIsExecuting] = useState(false);
@@ -143,13 +145,13 @@ const CQLExecutor = ({
     setExecutionDetails(details);
   };
 
-  const retryCommand = async (commandIndex) => {
+  const retryCommand = async (commandIndex, customCommand = null) => {
     if (isExecuting) {
-      message.warning("Cannot retry while execution is in progress");
+      message.warning("Cannot retry while batch execution is in progress");
       return;
     }
 
-    console.log(`🔄 Retrying command ${commandIndex + 1}`);
+    const commandToExecute = customCommand || cqlBlocks[commandIndex];
 
     setExecutionDetails((prev) =>
       prev.map((detail, idx) =>
@@ -160,15 +162,11 @@ const CQLExecutor = ({
     );
 
     try {
-      const command = cqlBlocks[commandIndex];
-
       const response = await fetch(`${API_BASE_URL}/api/cql/execute`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: command,
+          query: commandToExecute,
           parameters: {},
           user_id: userId,
         }),
@@ -181,11 +179,18 @@ const CQLExecutor = ({
 
       const result = await response.json();
 
+      setCqlBlocks((prev) => {
+        const newBlocks = [...prev];
+        newBlocks[commandIndex] = commandToExecute;
+        return newBlocks;
+      });
+
       setExecutionDetails((prev) =>
         prev.map((detail, idx) =>
           idx === commandIndex
             ? {
                 ...detail,
+                command: commandToExecute,
                 status: "success",
                 result: result,
                 timestamp: new Date(),
@@ -200,9 +205,15 @@ const CQLExecutor = ({
         failedBlocks: prev.failedBlocks - 1,
       }));
 
+      setEditedCommands((prev) => {
+        const newState = { ...prev };
+        delete newState[commandIndex];
+        return newState;
+      });
+
       message.success(`Command ${commandIndex + 1} executed successfully`);
     } catch (error) {
-      console.error(`❌ Retry failed for command ${commandIndex + 1}:`, error);
+      console.error(`Retry failed for command ${commandIndex + 1}:`, error);
 
       setExecutionDetails((prev) =>
         prev.map((detail, idx) =>
@@ -219,6 +230,10 @@ const CQLExecutor = ({
 
       message.error(`Retry failed for command ${commandIndex + 1}`);
     }
+  };
+
+  const handleCommandEdit = (index, value) => {
+    setEditedCommands((prev) => ({ ...prev, [index]: value }));
   };
 
   // const escapeCQLString = (cqlBlock) => {
@@ -320,13 +335,12 @@ const CQLExecutor = ({
         inSingleQuote = !inSingleQuote;
       } else if (char === '"' && !inSingleQuote) {
         inDoubleQuote = !inDoubleQuote;
-      } 
-      else if (char === ";" && !inSingleQuote && !inDoubleQuote) {
+      } else if (char === ";" && !inSingleQuote && !inDoubleQuote) {
         const block = currentBlock.trim();
         if (block.length > 0) {
           blocks.push(block);
         }
-        currentBlock = ""; 
+        currentBlock = "";
       }
     }
 
@@ -416,78 +430,72 @@ const CQLExecutor = ({
     executionQueueRef.current = [...cqlBlocks];
     currentIndexRef.current = 0;
 
-    console.log(
-      "📋 Queue prepared:",
-      executionQueueRef.current.length,
-      "commands",
-    );
-
     executeNextCommand(notificationId);
   };
 
   const executeNextCommand = async (notificationId, retryCount = 0) => {
     const currentState = executionStateRef.current;
 
-    console.log("🔄 executeNextCommand called", {
-      mounted: isMountedRef.current,
-      executing: currentState.isExecuting,
-      paused: currentState.isPaused,
-      currentIndex: currentIndexRef.current,
-      queueLength: executionQueueRef.current.length,
-    });
-
     if (!isMountedRef.current || !currentState.isExecuting) {
-      console.log("❌ Execution stopped or component unmounted");
       return;
     }
 
     if (currentState.isPaused) {
-      console.log("⏸️ Execution paused, waiting for resume...");
       return;
     }
 
     if (currentIndexRef.current >= executionQueueRef.current.length) {
-      console.log("✅ ALL COMMANDS COMPLETED");
       finishExecution(notificationId, true);
       return;
     }
 
-    const currentBlock = executionQueueRef.current[currentIndexRef.current];
     const blockIndex = currentIndexRef.current;
+    const BATCH_SIZE = 500;
 
-    console.log(
-      `▶️ Executing command ${blockIndex + 1}/${
-        executionQueueRef.current.length
-      }`,
+    const currentChunk = executionQueueRef.current.slice(
+      blockIndex,
+      blockIndex + BATCH_SIZE,
     );
 
-    setExecutionDetails((prev) =>
-      prev.map((detail, idx) =>
-        idx === blockIndex
-          ? { ...detail, status: "executing", timestamp: new Date() }
-          : detail,
-      ),
+    const endIndex = Math.min(
+      blockIndex + BATCH_SIZE,
+      executionQueueRef.current.length,
     );
 
     setExecutionStats((prev) => ({
       ...prev,
-      currentBlock: blockIndex + 1,
+      currentBlock: endIndex,
       status: "executing",
     }));
 
-    try {
-      console.log(`📤 Sending command ${blockIndex + 1} to backend`);
+    // setExecutionDetails((prev) =>
+    //   prev.map((detail, idx) =>
+    //     (idx >= blockIndex && idx < endIndex)
+    //       ? { ...detail, status: "executing", timestamp: new Date() }
+    //       : detail,
+    //   ),
+    // );
 
+    setExecutionDetails((prev) => {
+      const newDetails = [...prev];
+      for (let i = blockIndex; i < endIndex; i++) {
+        newDetails[i] = {
+          ...newDetails[i],
+          status: "executing",
+          timestamp: new Date(),
+        };
+      }
+      return newDetails;
+    });
+
+    try {
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch(`${API_BASE_URL}/api/cql/execute`, {
+      const response = await fetch(`${API_BASE_URL}/api/cql/execute-batch`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          query: currentBlock,
-          parameters: {},
+          queries: currentChunk,
           user_id: userId,
         }),
         signal: abortControllerRef.current.signal,
@@ -495,47 +503,56 @@ const CQLExecutor = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-
-        console.log(
-          `🔄 Retrying command ${blockIndex + 1} (attempt ${retryCount + 1})`,
-        );
-        setTimeout(
-          () => {
-            executeNextCommand(notificationId, retryCount + 1);
-          },
-          10000 * (retryCount + 1),
-        );
-
         throw new Error(errorData.detail || `HTTP ${response.status}`);
       }
 
       const result = await response.json();
-      console.log(`✅ Command ${blockIndex + 1} executed successfully`);
 
-      setExecutionDetails((prev) =>
-        prev.map((detail, idx) =>
-          idx === blockIndex
-            ? {
-                ...detail,
-                status: "success",
-                result: result,
-                timestamp: new Date(),
-              }
-            : detail,
-        ),
-      );
+      // setExecutionDetails((prev) =>
+      //   prev.map((detail, idx) =>
+      //     (idx >= blockIndex && idx < endIndex)
+      //       ? {
+      //           ...detail,
+      //           status: "success",
+      //           result: result,
+      //           timestamp: new Date(),
+      //         }
+      //       : detail,
+      //   ),
+      // );
+
+      setExecutionDetails((prev) => {
+        const newDetails = [...prev];
+        for (let i = blockIndex; i < endIndex; i++) {
+          const apiResult = result.results
+            ? result.results[i - blockIndex]
+            : null;
+          const isSuccess = apiResult ? apiResult.success : true;
+
+          newDetails[i] = {
+            ...newDetails[i],
+            status: isSuccess ? "success" : "error",
+            error: isSuccess ? null : apiResult?.error,
+            result: apiResult,
+            timestamp: new Date(),
+          };
+        }
+        return newDetails;
+      });
 
       setExecutionStats((prev) => {
         const newStats = {
           ...prev,
-          completedBlocks: prev.completedBlocks + 1,
-          successfulBlocks: prev.successfulBlocks + 1,
-          progress: Math.round(((blockIndex + 1) / prev.totalBlocks) * 100),
+          completedBlocks: prev.completedBlocks + currentChunk.length,
+          successfulBlocks: prev.successfulBlocks + result.executed,
+          failedBlocks:
+            prev.failedBlocks + (currentChunk.length - result.executed),
+          progress: Math.round((endIndex / prev.totalBlocks) * 100),
         };
 
         updateNotification(notificationId, {
           progress: newStats.progress,
-          message: `Executing CQL - ${blockIndex + 1}/${cqlBlocks.length}`,
+          message: `Executing CQL - ${endIndex}/${cqlBlocks.length}`,
           description: (
             <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
               <div
@@ -550,7 +567,7 @@ const CQLExecutor = ({
                   <Text strong>Total:</Text> {cqlBlocks.length}
                 </span>
                 <span>
-                  <Text strong>Executing:</Text> {blockIndex + 1}
+                  <Text strong>Executing:</Text> {endIndex}
                 </span>
                 <span style={{ color: "#3f8600" }}>
                   <Text strong>Success:</Text> {newStats.successfulBlocks}{" "}
@@ -572,86 +589,98 @@ const CQLExecutor = ({
       });
     } catch (error) {
       if (error.name === "AbortError") {
-        console.log(`⏸️ Command ${blockIndex + 1} aborted`);
         return;
       }
 
-      console.error(`❌ Command ${blockIndex + 1} failed:`, error.message);
-
-      setExecutionDetails((prev) =>
-        prev.map((detail, idx) =>
-          idx === blockIndex
-            ? {
-                ...detail,
-                status: "error",
-                error: error.message,
-                timestamp: new Date(),
-              }
-            : detail,
-        ),
+      console.error(
+        `Command batch starting at ${blockIndex} failed:`,
+        error.message,
       );
+
+      // setExecutionDetails((prev) =>
+      //   prev.map((detail, idx) =>
+      //     (idx >= blockIndex && idx < endIndex)
+      //       ? {
+      //           ...detail,
+      //           status: "error",
+      //           error: error.message,
+      //           timestamp: new Date(),
+      //         }
+      //       : detail,
+      //   ),
+      // );
+      setExecutionDetails((prev) => {
+        const newDetails = [...prev];
+        for (let i = blockIndex; i < endIndex; i++) {
+          newDetails[i] = {
+            ...newDetails[i],
+            status: "error",
+            error: error.message,
+            timestamp: new Date(),
+          };
+        }
+        return newDetails;
+      });
 
       setExecutionStats((prev) => {
         const newStats = {
           ...prev,
-          completedBlocks: prev.completedBlocks + 1,
-          failedBlocks: prev.failedBlocks + 1,
-          progress: Math.round(((blockIndex + 1) / prev.totalBlocks) * 100),
+          completedBlocks: prev.completedBlocks + currentChunk.length,
+          failedBlocks: prev.failedBlocks + currentChunk.length,
+          progress: Math.round((endIndex / prev.totalBlocks) * 100),
         };
-        return newStats;
-      });
 
-      const currentStats = executionStats;
-      updateNotification(notificationId, {
-        progress: Math.round(((blockIndex + 1) / cqlBlocks.length) * 100),
-        message: `Executing CQL - ${blockIndex + 1}/${cqlBlocks.length}`,
-        description: (
-          <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "8px",
-                flexWrap: "wrap",
-              }}
-            >
-              <span>
-                <Text strong>Total:</Text> {cqlBlocks.length}
-              </span>
-              <span>
-                <Text strong>Executing:</Text> {blockIndex + 1}
-              </span>
-              <span style={{ color: "#3f8600" }}>
-                <Text strong>Success:</Text> {currentStats.successfulBlocks}
-              </span>
-              <span style={{ color: "#cf1322" }}>
-                <Text strong>Failures:</Text> {currentStats.failedBlocks + 1}
-              </span>
+        // Alteração: A atualização da notificação foi movida para dentro do setState
+        // para garantir que os valores mais recentes (newStats) sejam exibidos,
+        // evitando problemas de concorrência com o estado anterior.
+        updateNotification(notificationId, {
+          progress: newStats.progress,
+          message: `Executing CQL - ${endIndex}/${cqlBlocks.length}`,
+          description: (
+            <div style={{ fontSize: "12px", lineHeight: "1.4" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>
+                  <Text strong>Total:</Text> {cqlBlocks.length}
+                </span>
+                <span>
+                  <Text strong>Executing:</Text> {endIndex}
+                </span>
+                <span style={{ color: "#3f8600" }}>
+                  <Text strong>Success:</Text> {newStats.successfulBlocks}
+                </span>
+                <span style={{ color: "#cf1322" }}>
+                  <Text strong>Failures:</Text> {newStats.failedBlocks}
+                </span>
+              </div>
+              <div
+                style={{ marginTop: "4px", color: "#8c8c8c", fontSize: "11px" }}
+              >
+                Progress: {newStats.progress}%
+              </div>
             </div>
-            <div
-              style={{ marginTop: "4px", color: "#8c8c8c", fontSize: "11px" }}
-            >
-              Progress:{" "}
-              {Math.round(((blockIndex + 1) / cqlBlocks.length) * 100)}%
-            </div>
-          </div>
-        ),
+          ),
+        });
+
+        return newStats;
       });
     } finally {
       abortControllerRef.current = null;
     }
 
-    currentIndexRef.current++;
+    currentIndexRef.current += BATCH_SIZE;
 
     const nextState = executionStateRef.current;
     if (isMountedRef.current && nextState.isExecuting && !nextState.isPaused) {
       setTimeout(() => {
         executeNextCommand(notificationId);
       }, executionConfig.delayBetweenCommands);
-    } else {
-      console.log(
-        "⏸️ Execution paused or stopped, not scheduling next command",
-      );
     }
   };
 
@@ -1087,13 +1116,24 @@ const CQLExecutor = ({
 
         {isExecuting &&
           executionDetails.some((d) => d.status !== "pending") && (
-            <Card size="small" title="Execution Details" style={{overflow:'auto', maxHeight: '400px'}}>
+            <Card
+              size="small"
+              title="Execution Details"
+              style={{ overflow: "auto",maxHeight: "400px" }}
+            >
               <List
                 size="small"
+                // dataSource={executionDetails
+                //   .filter((d) => d.status !== "pending")
+                //   // .slice(-10)
+                // }
                 dataSource={executionDetails
+                  .slice(
+                    Math.max(0, currentIndexRef.current - 50),
+                    currentIndexRef.current + 500,
+                  )
                   .filter((d) => d.status !== "pending")
-                  // .slice(-10)
-                }
+                  .reverse()}
                 renderItem={(detail) => (
                   <List.Item>
                     <Space>
@@ -1146,78 +1186,75 @@ const CQLExecutor = ({
                     <strong>{executionResult.stats.failedBlocks}</strong>{" "}
                     commands failed
                   </p>
-
-                  {/* <Collapse size="small" style={{ marginTop: 16 }}>
-                    <Panel header="View complete details" key="1">
-                      <List
-                        size="small"
-                        dataSource={executionResult.detailedResults.slice(
-                          0,
-                          10
-                        )}
-                        renderItem={(detail) => (
-                          <List.Item>
-                            <Space
-                              direction="vertical"
-                              style={{ width: "100%" }}
-                            >
-                              <Space>
-                                {getStatusIcon(detail.status)}
-                                <Text strong>Command {detail.index + 1}:</Text>
-                                <Tag color={getStatusColor(detail.status)}>
-                                  {detail.status === "success"
-                                    ? "Success"
-                                    : detail.status === "error"
-                                    ? "Failure"
-                                    : "Pending"}
-                                </Tag>
-                                {detail.status === "error" && (
-                                  <Tooltip title="Retry this command">
-                                    <Button
-                                      size="small"
-                                      icon={<RedoOutlined />}
-                                      onClick={() => retryCommand(detail.index)}
-                                    >
-                                      Retry
-                                    </Button>
-                                  </Tooltip>
-                                )}
-                              </Space>
-                              <pre
-                                style={{
-                                  fontSize: "11px",
-                                  backgroundColor: "#f5f5f5",
-                                  padding: "4px",
-                                  borderRadius: "2px",
-                                  margin: 0,
-                                }}
-                              >
-                                {detail.command}
-                              </pre>
-                              {detail.error && (
-                                <Text
-                                  type="danger"
-                                  style={{ fontSize: "11px" }}
-                                >
-                                  <strong>Error:</strong> {detail.error}
-                                </Text>
-                              )}
-                            </Space>
-                          </List.Item>
-                        )}
-                      />
-                      {executionResult?.detailedResults?.detailedResults?.length > 5 && (
-                        <Text type="secondary" style={{ fontSize: "12px" }}>
-                          ... and {executionResult?.detailedResults?.detailedResults?.length - 10} more commands
-                        </Text>
-                      )}
-                    </Panel>
-                  </Collapse> */}
                 </div>
               }
               type={executionResult.success ? "success" : "warning"}
               showIcon
             />
+
+            {executionStats.failedBlocks > 0 && (
+              <Card
+                type="inner"
+                title={`Review and Retry Failed Commands (${executionStats.failedBlocks})`}
+                style={{ marginTop: 16, borderColor: "#ff4d4f" }}
+              >
+                <List
+                  itemLayout="vertical"
+                  dataSource={executionDetails.filter(
+                    (d) => d.status === "error",
+                  )}
+                  renderItem={(item) => (
+                    <List.Item>
+                      <Space direction="vertical" style={{ width: "100%" }}>
+                        <Space>
+                          <Tag color="error">Command {item.index + 1}</Tag>
+                          <Text type="danger" strong>
+                            Error Details:
+                          </Text>
+                        </Space>
+                        <Alert
+                          message={item.error}
+                          type="error"
+                          style={{ fontSize: "12px", fontFamily: "monospace" }}
+                        />
+
+                        <Text strong>Edit Query:</Text>
+                        <Input.TextArea
+                          rows={4}
+                          value={
+                            editedCommands[item.index] !== undefined
+                              ? editedCommands[item.index]
+                              : item.command
+                          }
+                          onChange={(e) =>
+                            handleCommandEdit(item.index, e.target.value)
+                          }
+                          style={{
+                            fontFamily: "monospace",
+                            fontSize: "12px",
+                            backgroundColor: "#fafafa",
+                          }}
+                        />
+
+                        <Button
+                          type="primary"
+                          icon={<RedoOutlined />}
+                          onClick={() =>
+                            retryCommand(
+                              item.index,
+                              editedCommands[item.index] || item.command,
+                            )
+                          }
+                          loading={item.status === "executing"}
+                        >
+                          Retry Command
+                        </Button>
+                      </Space>
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            )}
           </div>
         )}
       </Space>

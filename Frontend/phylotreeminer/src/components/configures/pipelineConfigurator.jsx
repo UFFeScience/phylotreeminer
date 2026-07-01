@@ -986,7 +986,7 @@ const PipelineConfigurator = () => {
                     fetchNcbiEmail();
                   }}
                   style={{ marginBottom: 16, marginLeft: 8 }}
-                  disabled
+                  // disabled
                 >
                   Search NCBI (Beta Testing)
                 </Button>

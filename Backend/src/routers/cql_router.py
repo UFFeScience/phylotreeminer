@@ -35,3 +35,39 @@ async def execute_cql(query_data: dict):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na execução: {str(e)}")
+    
+@router.post("/execute-batch")
+async def execute_batch_cql(query_data: dict):
+    """
+    Executa comandos CQL em lote para mitigar overhead de rede e transações.
+    """
+    try:
+        queries = query_data.get('queries', [])
+        user_id_request = query_data.get('user_id')
+        
+        if not queries or not isinstance(queries, list):
+            raise HTTPException(status_code=400, detail="A lista de queries é obrigatória")
+        
+        if not neo4j_service.connected:
+            raise HTTPException(status_code=500, detail="Neo4j não conectado")
+        
+        batch_payload = []
+        for query in queries:
+            if user_id_request and "<<USER_UID>>" in query:
+                query = query.replace("<<USER_UID>>", user_id_request)
+            batch_payload.append((query, {"user_id": user_id_request}))
+            
+        results = await neo4j_service.execute_batch_queries(batch_payload)
+        
+        success_count = sum(1 for r in results if r.get("success"))
+        
+        return {
+            "success": True,
+            "execution_type": "batch",
+            "executed": success_count,
+            "total": len(queries),
+            "results": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na execução do batch: {str(e)}")

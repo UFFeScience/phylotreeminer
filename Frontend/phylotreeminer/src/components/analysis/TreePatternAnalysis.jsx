@@ -81,7 +81,7 @@ const TreePatternAnalysis = ({ projectName }) => {
     if (projectName) {
       fetchAnalysis();
     }
-  }, [projectName, rareThreshold, robustThreshold]);
+  }, [projectName]);
 
   const sharedSensitiveSequences = useMemo(() => {
     if (
@@ -159,19 +159,65 @@ const TreePatternAnalysis = ({ projectName }) => {
       title: "Clades/Subtrees",
       dataIndex: "node_names",
       key: "pattern",
-      render: (nodes) => {
+      render: (nodes, record) => {
         if (!nodes || nodes.length === 0) return "-";
 
+        const terminals = record.terminals || [];
         const maxVisible = 3;
         const visibleNodes = nodes.slice(0, maxVisible);
         const hiddenNodes = nodes.slice(maxVisible);
 
+        const makeTooltipContent = (nodeName) => {
+          const seqs = record.terminals_by_node?.[nodeName] ?? [];
+          return (
+            <div
+              style={{
+                maxWidth: 320,
+                maxHeight: 240,
+                overflowY: "auto",
+                backgroundColor: "white",
+              }}
+            >
+              <Text strong style={{ fontSize: 11 }}>
+                Sequences in this subtree:
+              </Text>
+              <div
+                style={{
+                  marginTop: 4,
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 4,
+                }}
+              >
+                {seqs.length > 0 ? (
+                  seqs.map((seq, i) => (
+                    <Tag key={i} style={{ fontSize: 10, margin: 0 }}>
+                      {seq}
+                    </Tag>
+                  ))
+                ) : (
+                  <Text type="secondary" style={{ fontSize: 10 }}>
+                    No sequences
+                  </Text>
+                )}
+              </div>
+            </div>
+          );
+        };
+
         return (
           <Space size={[0, 4]} wrap>
             {visibleNodes.map((node, index) => (
-              <Tag key={index} color="blue">
-                {node}
-              </Tag>
+              <Tooltip
+                key={index}
+                title={makeTooltipContent(node)}
+                trigger="hover"
+              >
+                <Tag color="blue" style={{ cursor: "default" }}>
+                  {node} | N. Seqs.:{" "}
+                  {(record.terminals_by_node?.[node] ?? []).length}
+                </Tag>
+              </Tooltip>
             ))}
             {hiddenNodes.length > 0 && (
               <Popover
@@ -187,9 +233,16 @@ const TreePatternAnalysis = ({ projectName }) => {
                     }}
                   >
                     {hiddenNodes.map((node, index) => (
-                      <Tag key={index} color="blue">
-                        {node}
-                      </Tag>
+                      <Tooltip
+                        key={index}
+                        title={makeTooltipContent(node)}
+                        trigger="hover"
+                      >
+                        <Tag color="blue" style={{ cursor: "default" }}>
+                          {node} | N. Seqs.:{" "}
+                          {(record.terminals_by_node?.[node] ?? []).length}
+                        </Tag>
+                      </Tooltip>
                     ))}
                   </div>
                 }
@@ -275,7 +328,7 @@ const TreePatternAnalysis = ({ projectName }) => {
           <Title strong level={4} style={{ margin: 0 }}>
             Thresholds
           </Title>
-          <Space style={{ width: "100%", justifyContent: "space-between" }}>
+          <Space align="end" style={{ width: "100%", justifyContent: "space-between" }}>
             <Space direction="vertical" size={2}>
               <Text type="secondary" strong style={{ fontSize: 12 }}>
                 Sensitive (Max %)
@@ -302,6 +355,9 @@ const TreePatternAnalysis = ({ projectName }) => {
                 style={{ width: 100 }}
               />
             </Space>
+            <Button type="primary" onClick={fetchAnalysis} loading={loading}>
+              Apply Filter
+            </Button>
           </Space>
         </Space>
       </Flex>
@@ -623,7 +679,7 @@ const TreePatternAnalysis = ({ projectName }) => {
                   <Space>
                     <InfoCircleOutlined style={{ color: "#457A10" }} />
                     <Text style={{ color: "#457A10" }}>
-                      View Shared Sequences ({sharedSensitiveSequences.length})
+                      View Shared Sequences ({sharedRobustSequences.length})
                     </Text>
                   </Space>
                 </div>
