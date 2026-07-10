@@ -2,6 +2,10 @@
 
 [Official CLI workflow documentation](https://github.com/JohKemPo/BioComp_UFF/tree/main/README.md)
 
+[Official interactive demo](http://phylotreeminer.ic.uff.br/) 
+
+  `Notice: This tool is available exclusively for demonstration purposes and should not be used to execute production pipelines.` 
+
 ⚠️ **To clone the repository and its submodules:** ⚠️
 
 ```bash
